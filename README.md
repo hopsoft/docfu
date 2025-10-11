@@ -742,11 +742,11 @@ Examples:
   $ docfu ./docs
   $ docfu prepare ./docs
   $ docfu preview ./my-docs --port 3000
+  $ docfu build ./docs --root /tmp/my-docs
 
 Environment Variables:
-  DOCFU_SOURCE      Source markdown directory
-  DOCFU_WORKSPACE   Workspace directory (default: .docfu/workspace)
-  DOCFU_DIST        Build output directory (default: .docfu/dist)
+  DOCFU_SOURCE   Source markdown directory
+  DOCFU_ROOT     Root directory (default: .docfu)
 ```
 
 ## Environment Variables
@@ -754,8 +754,7 @@ Environment Variables:
 Override default paths using environment variables.
 
 - **DOCFU_SOURCE** - Source markdown directory
-- **DOCFU_WORKSPACE** - Temporary workspace where markdown is processed before building (default: `.docfu/workspace`)
-- **DOCFU_DIST** - Build output directory for the final static site (default: `.docfu/dist`)
+- **DOCFU_ROOT** - Root directory for workspace and build output (default: `.docfu`)
 
 ## Troubleshooting
 

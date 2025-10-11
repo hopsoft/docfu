@@ -18,28 +18,20 @@ describe('Build Command', () => {
     await createFixtures(paths, 'build', ['docfu.yml', 'index.md', 'guide.md'])
 
     // Use prepare instead of full build to keep tests fast
-    const {exitCode, stdout} = await runCLI(['prepare', paths.source, '--workspace', paths.workspace])
+    const {exitCode, stdout} = await runCLI(['prepare', paths.source, '--root', paths.root])
 
     assert.strictEqual(exitCode, 0, 'Prepare should succeed')
     assert.ok(stdout.includes('Processing docs'), 'Should show processing message')
     assert.ok(existsSync(paths.workspace), 'Should create workspace directory')
-    assert.ok(existsSync(join(paths.workspace, 'index.md')), 'Should process index.md')
-    assert.ok(existsSync(join(paths.workspace, 'guide.md')), 'Should process guide.md')
+    assert.ok(existsSync(join(paths.workspace, 'src/content/docs/index.md')), 'Should process index.md')
+    assert.ok(existsSync(join(paths.workspace, 'src/content/docs/guide.md')), 'Should process guide.md')
   })
 
   it('should support --dry-run flag', async () => {
     const paths = getTestPaths('build-dry-run', import.meta.url)
     await createFixtures(paths, 'build', ['docfu.yml', 'index.md'])
 
-    const {exitCode, stdout} = await runCLI([
-      'build',
-      paths.source,
-      '--workspace',
-      paths.workspace,
-      '--dist',
-      paths.dist,
-      '--dry-run',
-    ])
+    const {exitCode, stdout} = await runCLI(['build', paths.source, '--root', paths.root, '--dry-run'])
 
     assert.strictEqual(exitCode, 0, 'Should succeed')
     assert.ok(stdout.includes('Configuration validated'), 'Should validate config')
@@ -51,36 +43,29 @@ describe('Build Command', () => {
     const paths = getTestPaths('build-explicit', import.meta.url)
     await createFixtures(paths, 'build', ['docfu.yml', 'index.md'])
 
-    const {exitCode} = await runCLI(['prepare', paths.source, '--workspace', paths.workspace])
+    const {exitCode} = await runCLI(['prepare', paths.source, '--root', paths.root])
 
     assert.strictEqual(exitCode, 0, 'Should succeed with prepare command')
     assert.ok(existsSync(paths.workspace), 'Should create workspace directory')
   })
 
-  it('should support custom workspace directory', async () => {
+  it('should support custom root directory', async () => {
     const paths = getTestPaths('build-custom-paths', import.meta.url)
-    const customWorkspace = `${paths.workspace}-custom`
+    const customRoot = `${paths.root}-custom`
 
     await createFixtures(paths, 'build', ['docfu.yml', 'index.md'])
 
-    const {exitCode} = await runCLI(['prepare', paths.source, '--workspace', customWorkspace])
+    const {exitCode} = await runCLI(['prepare', paths.source, '--root', customRoot])
 
     assert.strictEqual(exitCode, 0, 'Should succeed')
-    assert.ok(existsSync(customWorkspace), 'Should create custom workspace')
+    assert.ok(existsSync(join(customRoot, 'workspace')), 'Should create workspace in custom root')
   })
 
   it('should complete full build pipeline with Astro', async () => {
     const paths = getTestPaths('build-full', import.meta.url)
     await createFixtures(paths, 'build', ['docfu.yml', 'index.md'])
 
-    const {exitCode, stdout} = await runCLI([
-      'build',
-      paths.source,
-      '--workspace',
-      paths.workspace,
-      '--dist',
-      paths.dist,
-    ])
+    const {exitCode, stdout} = await runCLI(['build', paths.source, '--root', paths.root])
 
     assert.strictEqual(exitCode, 0, 'Full build should succeed')
     assert.ok(stdout.includes('Processing docs'), 'Should show processing')
@@ -100,7 +85,7 @@ describe('Build Command', () => {
     await createFixtures(paths, 'build', ['docfu.yml', 'index.md'])
 
     // No command specified - should default to build
-    const {exitCode} = await runCLI([paths.source, '--workspace', paths.workspace, '--dist', paths.dist])
+    const {exitCode} = await runCLI([paths.source, '--root', paths.root])
 
     assert.strictEqual(exitCode, 0, 'Default build should succeed')
     assert.ok(existsSync(paths.dist), 'Should create dist directory')
@@ -124,7 +109,7 @@ describe('Build Command', () => {
       'api/reference.md',
     ])
 
-    const {exitCode} = await runCLI(['build', paths.source, '--workspace', paths.workspace, '--dist', paths.dist])
+    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
 
     assert.strictEqual(exitCode, 0, 'Comprehensive build should succeed')
 
@@ -132,12 +117,12 @@ describe('Build Command', () => {
     // WORKSPACE ARTIFACTS VERIFICATION
     // ========================================
 
-    // Verify workspace configuration files
-    assert.ok(existsSync(join(paths.workspace, 'docfu.yml')), 'Should create docfu.yml')
-    assert.ok(existsSync(join(paths.workspace, 'manifest.json')), 'Should create manifest.json')
+    // Verify root configuration files
+    assert.ok(existsSync(join(paths.root, 'config.yml')), 'Should create config.yml in root')
+    assert.ok(existsSync(join(paths.root, 'manifest.json')), 'Should create manifest.json in root')
 
     // Verify manifest.json content
-    const manifestPath = join(paths.workspace, 'manifest.json')
+    const manifestPath = join(paths.root, 'manifest.json')
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
     assert.strictEqual(manifest.docs.length, 6, 'Manifest should contain all 6 pages')
     const indexDoc = manifest.docs.find(d => d.slug === 'index' || d.slug === '')
@@ -157,7 +142,7 @@ describe('Build Command', () => {
     )
 
     // Verify processed .mdx file has component imports and frontmatter
-    const mdxPath = join(paths.workspace, 'with-components.mdx')
+    const mdxPath = join(paths.workspace, 'src/content/docs/with-components.mdx')
     assert.ok(existsSync(mdxPath), 'Should convert to .mdx')
     const mdxContent = readFileSync(mdxPath, 'utf-8')
     assert.ok(mdxContent.includes('import'), 'Should have import statement')
@@ -168,7 +153,7 @@ describe('Build Command', () => {
     assert.ok(mdxContent.includes('title: Page with Components'), 'Should extract title from H1')
 
     // Verify processed .mdoc file has Markdoc syntax and frontmatter
-    const mdocPath = join(paths.workspace, 'with-markdoc.mdoc')
+    const mdocPath = join(paths.workspace, 'src/content/docs/with-markdoc.mdoc')
     assert.ok(existsSync(mdocPath), 'Should convert to .mdoc')
     const mdocContent = readFileSync(mdocPath, 'utf-8')
     assert.ok(mdocContent.includes('## Important Note {% #important'), 'Should preserve heading badges')
@@ -176,7 +161,7 @@ describe('Build Command', () => {
     assert.ok(mdocContent.includes('title: Page with Markdoc'), 'Should have title in frontmatter')
 
     // Verify plain markdown has frontmatter
-    const indexMdPath = join(paths.workspace, 'index.md')
+    const indexMdPath = join(paths.workspace, 'src/content/docs/index.md')
     const indexMdContent = readFileSync(indexMdPath, 'utf-8')
     assert.ok(indexMdContent.includes('title: Home'), 'Plain markdown should have title injected')
     assert.ok(!indexMdContent.includes('# Home\n'), 'Should remove H1 after extracting title')

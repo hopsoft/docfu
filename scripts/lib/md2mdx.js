@@ -121,7 +121,7 @@ function extractExistingImports(content) {
  * })
  * // Returns:
  * // import MyCustom from '../../components/MyCustom.astro'
- * // import InlineIcon from '../engine/src/components/InlineIcon.astro'
+ * // import InlineIcon from '../../components/InlineIcon.astro'
  * // import { Card } from '@astrojs/starlight/components'
  * //
  * // <Card /><InlineIcon /><MyCustom />
@@ -151,7 +151,7 @@ export function process(filename, content, options = {}) {
   }
 
   for (const name of docfu) {
-    imports += `import ${name} from '../engine/src/components/${name}.astro'\n`
+    imports += `import ${name} from '../../components/${name}.astro'\n`
   }
 
   if (starlight.length > 0) {

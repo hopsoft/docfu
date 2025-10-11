@@ -67,7 +67,7 @@ export function getStarlightOverrides(components) {
   const overrides = {}
   for (const component of components) {
     if (starlightThemeComponents.includes(component.name)) {
-      overrides[component.name] = `../workspace/${component.path}`
+      overrides[component.name] = `../workspace/src/components/${component.path}`
     }
   }
 
