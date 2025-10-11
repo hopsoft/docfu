@@ -3,9 +3,8 @@ import Markdoc from '@markdoc/markdoc'
 import starlightMarkdoc from '@astrojs/starlight-markdoc'
 import {join, dirname} from 'path'
 import {fileURLToPath} from 'url'
-import {extractPropsFromComponent} from './src/utils/components.js'
+import {extractPropsFromComponent, getDocfuComponents} from './src/utils/components.js'
 import {loadManifest} from './src/utils/docfu.js'
-import {DOCFU_COMPONENTS} from './scripts/lib/components.js'
 
 const {Tag} = Markdoc
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -17,8 +16,8 @@ const userComponents = manifest.components?.items || []
 // Build tags with dynamic attribute discovery
 const tags = {...preset.tags}
 
-// DocFu-provided components (static list, dynamic prop discovery)
-const docfuComponents = DOCFU_COMPONENTS
+// DocFu-provided components (dynamic discovery from src/components/)
+const docfuComponents = getDocfuComponents()
 for (const name of docfuComponents) {
   const tagName = name.toLowerCase()
   const componentPath = join(__dirname, `src/components/${name}.astro`)

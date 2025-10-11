@@ -24,13 +24,6 @@ async function setupWorkspaceProject(workspace) {
     await cp(src, workspaceSrc, {recursive: true, force: true})
   }
 
-  // Copy scripts for config helpers
-  const scripts = join(packageRoot, 'scripts')
-  const workspaceScripts = join(workspace, 'scripts')
-  if (existsSync(scripts)) {
-    await cp(scripts, workspaceScripts, {recursive: true, force: true})
-  }
-
   // Copy config files
   const configs = ['astro.config.mjs', 'markdoc.config.mjs', 'tsconfig.json', 'package.json']
   for (const name of configs) {
