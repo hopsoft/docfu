@@ -6,6 +6,7 @@
 #
 # Configuration sections:
 # - site: Site name, URL, and theme (required in root docfu.yml)
+# - root: Root directory for workspace and build output (default: .docfu)
 # - assets: Static assets directory (default: assets)
 # - components: Custom components directory (default: components)
 # - exclude: Files/directories to omit from processing
@@ -19,10 +20,10 @@
 # - Avoid duplicate configuration entries to prevent conflicts
 #
 # Build directories:
-# - Root directory (default: .docfu) can be configured via --root CLI option
-# - Workspace: .docfu/workspace (Astro project, auto-managed)
-# - Build output: .docfu/dist (static site output)
-# - Config/manifest: .docfu/config.yml and .docfu/manifest.json
+# - Root directory (default: .docfu) can be configured via --root CLI option or root: in config
+# - Workspace: <root>/workspace (Astro project, auto-managed)
+# - Build output: <root>/dist (static site output)
+# - Config/manifest: <root>/config.yml and <root>/manifest.json
 # ==============================================================================
 
 # Site Configuration (REQUIRED, configure in root docfu.yml)
@@ -30,6 +31,11 @@ site:
   name: Documentation
   url: https://docs.example.com
   theme: nova # OPTIONAL - 'nova' (default, modern) or 'starlight' (classic)
+
+# Root directory (OPTIONAL, configure in root docfu.yml)
+# Location where DocFu creates workspace and build directories
+# Priority: CLI --root flag > root: config > DOCFU_ROOT env var > .docfu (default)
+# root: .docfu
 
 # Static assets directory in source (OPTIONAL, configure in root docfu.yml)
 # Images, fonts, CSS files, and other static files are bundled into the final site

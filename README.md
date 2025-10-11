@@ -427,7 +427,7 @@ _e.g. Product Teams, Technical Writers, etc._
 
 ### Custom Components
 
-DocFu also supports custom components. Create them in a `components/` directory:
+DocFu also supports custom components. Create them as `.astro` files in a `components/` directory:
 
 > [!NOTE]
 >
@@ -550,8 +550,11 @@ Enhanced authoring features available everywhere - zero configuration.
 
 ## Customization
 
-Run `npx docfu init` or create the `docfu.yml` config file in your markdown project.
-See [docfu.example.yml](docfu.example.yml) for details.
+Run `npx docfu init` or create a `docfu.yml` config file in your markdown project.
+See [docfu.example.yml](docfu.example.yml) for all available options.
+
+> [!TIP]
+> Configuration priority: CLI flags > `docfu.yml` > environment variables > defaults
 
 ### Theme Selection
 
@@ -669,6 +672,24 @@ sidebar:
 
 </details>
 
+### Root Directory Configuration
+
+Customize where DocFu creates its build files:
+
+<details>
+<summary>Example configuration</summary>
+
+```yaml
+# Change default .docfu directory location
+root: /tmp/docfu-build
+# or relative path
+root: ../builds/.docfu
+```
+
+**Configuration priority:** CLI `--root` flag > `docfu.yml` `root:` > `DOCFU_ROOT` env var > `.docfu` (default)
+
+</details>
+
 ### Hierarchical Configuration
 
 Place `docfu.yml` files in subdirectories for granular control.
@@ -678,11 +699,11 @@ Place `docfu.yml` files in subdirectories for granular control.
 
 ```
 docs/
-├── docfu.yml           # Root config (site info)
+├── docfu.yml           # Root config (site info, root directory)
 ├── guides/
-│   └── docfu.yml       # Guides-specific config
+│   └── docfu.yml       # Guides-specific config (frontmatter defaults)
 └── api/
-    └── docfu.yml       # API-specific config
+    └── docfu.yml       # API-specific config (exclude patterns, frontmatter)
 ```
 
 Configs cascade naturally - subdirectory configs override parent configs for their scope.
@@ -700,13 +721,22 @@ npx docfu init /path/to/markdown
 - **What it does:** Creates a `docfu.yml` configuration file in your markdown project
 - **When to use:** Whenever you want to customize
 
+### Prepare Documents
+
+```bash
+npx docfu prepare /path/to/markdown
+```
+
+- **What it does:** Processes and transforms your markdown files (no build step)
+- **When to use:** Debugging transformations, inspecting processed files, or preparing for manual builds
+
 ### Build Your Site
 
 ```bash
 npx docfu build /path/to/markdown
 ```
 
-- **What it does:** Converts your markdown project into a beautiful static website
+- **What it does:** Prepares documents and builds a complete static website
 - **When to use:** Building for deployment or testing final output
 
 ### Preview Your Site
@@ -733,9 +763,28 @@ Options:
 
 Commands:
   init [options] [source]     Initialize DocFu configuration
+    Options:
+      -r, --root <path>       root directory (default: .docfu)
+      -y, --yes               skip confirmation prompts
+
   prepare [options] <source>  Prepare documents for build
+    Options:
+      -r, --root <path>       root directory (default: .docfu)
+      -y, --yes               skip confirmation prompts
+
   build [options] <source>    Build documentation site (default)
+    Options:
+      -r, --root <path>       root directory (default: .docfu)
+      -y, --yes               skip confirmation prompts
+      --dry-run               verify configuration without building
+
   preview [options] <source>  Preview documentation site locally
+    Options:
+      -r, --root <path>       root directory (default: .docfu)
+      -y, --yes               skip confirmation prompts
+      -p, --port <number>     preview server port (default: 4321)
+      --watch                 watch for changes and rebuild
+
   help [command]              display help for command
 
 Examples:
@@ -743,6 +792,7 @@ Examples:
   $ docfu prepare ./docs
   $ docfu preview ./my-docs --port 3000
   $ docfu build ./docs --root /tmp/my-docs
+  $ docfu build ./docs --dry-run
 
 Environment Variables:
   DOCFU_SOURCE   Source markdown directory
@@ -751,10 +801,18 @@ Environment Variables:
 
 ## Environment Variables
 
-Override default paths using environment variables.
+Override default paths using environment variables:
 
 - **DOCFU_SOURCE** - Source markdown directory
 - **DOCFU_ROOT** - Root directory for workspace and build output (default: `.docfu`)
+
+**Configuration priority:** CLI flags > `docfu.yml` > environment variables > defaults
+
+**Example:**
+
+```bash
+DOCFU_ROOT=/tmp/docfu-build npx docfu build ./docs
+```
 
 ## Troubleshooting
 
@@ -778,31 +836,56 @@ Place images in `assets/` directory and use relative paths.
 The workspace contains your prepared (pre-processed) markdown files with all transformations applied before building.
 Inspecting these files helps diagnose issues with syntax detection, component imports, or file conversions.
 
+**Directory structure:**
+
+```
+.docfu/                      # Root (created in current working directory)
+├── workspace/              # Processed markdown + Astro project
+│   ├── src/
+│   │   ├── components/    # Processed components (.astro)
+│   │   └── content/docs/  # Processed markdown files
+│   ├── public/            # Bundled assets (images, CSS, etc.)
+│   ├── astro.config.mjs   # Generated Astro configuration
+│   └── package.json       # Astro project manifest
+├── dist/                  # Built static site (ready for deployment)
+├── config.yml            # Merged DocFu configuration
+└── manifest.json         # Build manifest (components, docs, CSS)
+```
+
 **What you'll find in the workspace:**
 
-- File conversions (based on content/context)
-  - `README.md` → `index.md`
-  - `.md` → `.mdx`
-  - `.md` → `.mdoc`
-- Auto-enhanced frontmatter
+- File conversions (based on content/syntax detection):
+  - `README.md` → `index.md` (when no `index.md` exists)
+  - `.md` → `.mdx` (when JSX components detected)
+  - `.md` → `.mdoc` (when Markdoc syntax detected)
+- Component processing:
+  - Components copied from source `components/` to workspace `src/components/`
+  - All components finalized as `.astro` files
+- Auto-enhanced frontmatter (titles, metadata)
 - Auto-generated component imports for MDX files
 - Updated partial references for Markdoc files
+- Bundled assets with preserved directory structure
 
 **How to inspect:**
 
 ```bash
 npx docfu prepare /path/to/markdown
-ls -la .docfu/workspace/
+ls -la .docfu/workspace/src/content/docs/  # Processed markdown
+ls -la .docfu/workspace/src/components/    # Processed components
+cat .docfu/manifest.json                   # Build metadata
 ```
 
 _Note: `.docfu` is created in the current working directory where `npx docfu` is executed._
+_The root directory can be customized via `--root` flag, `docfu.yml`, or `DOCFU_ROOT` env var._
 
 **Common troubleshooting scenarios:**
 
-- **Components not rendering?** Check if MDX files have the expected imports
+- **Components not rendering?** Check if MDX files have the expected imports in workspace
 - **Wrong file extension?** Verify `.md` files were converted to `.mdx` or `.mdoc` correctly
+- **Component not found?** Verify component exists in `workspace/src/components/` with `.astro` extension
 - **Partials not working?** Inspect partial file references and paths in the workspace
 - **Frontmatter issues?** Review processed frontmatter in workspace files
+- **Assets missing?** Check if files are in `workspace/public/` with correct directory structure
 
 ## Similar Projects
 
