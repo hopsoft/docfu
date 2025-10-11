@@ -44,10 +44,10 @@ describe('README Renaming', () => {
     assert.ok(existsSync(join(paths.workspace, 'src/content/docs/index.md')), 'index.md should exist')
     assert.ok(existsSync(join(paths.workspace, 'src/content/docs/README.md')), 'README.md should also exist')
 
-    const indexContent = await readFile(join(paths.workspace, 'src/content/docs/index.md'), 'utf-8')
-    const readmeContent = await readFile(join(paths.workspace, 'src/content/docs/README.md'), 'utf-8')
-    assert.ok(indexContent.includes('Main page'), 'index.md should have correct content')
-    assert.ok(readmeContent.includes('Project readme'), 'README.md should have correct content')
+    const index = await readFile(join(paths.workspace, 'src/content/docs/index.md'), 'utf-8')
+    const readme = await readFile(join(paths.workspace, 'src/content/docs/README.md'), 'utf-8')
+    assert.ok(index.includes('Main page'), 'index.md should have correct content')
+    assert.ok(readme.includes('Project readme'), 'README.md should have correct content')
   })
 
   it('should handle case-insensitive README variants', async () => {

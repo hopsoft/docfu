@@ -15,7 +15,6 @@ describe('Static Assets', () => {
   it('should copy image files to workspace and dist', async () => {
     const paths = getTestPaths('assets-images', import.meta.url)
 
-    // Create source with images
     mkdirSync(paths.source, {recursive: true})
     mkdirSync(join(paths.source, 'images'), {recursive: true})
 
@@ -128,7 +127,6 @@ describe('Static Assets', () => {
   it('should preserve assets directory in engine/public for relative links', async () => {
     const paths = getTestPaths('assets-directory-preservation', import.meta.url)
 
-    // Create nested source structure with assets
     mkdirSync(join(paths.source, 'assets', 'images'), {recursive: true})
     mkdirSync(join(paths.source, 'guides', 'advanced'), {recursive: true})
 

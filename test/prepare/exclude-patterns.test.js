@@ -132,8 +132,8 @@ describe('Exclude Patterns', () => {
 
     assert.strictEqual(exitCode, 0, 'CLI should succeed')
 
-    const docsDir = join(paths.workspace, 'src/content/docs')
-    const files = await readdir(docsDir, {recursive: true})
+    const docs = join(paths.workspace, 'src/content/docs')
+    const files = await readdir(docs, {recursive: true})
     const mdFiles = files.filter(f => f.endsWith('.md'))
 
     assert.ok(mdFiles.includes('index.md'), 'Should include index.md')

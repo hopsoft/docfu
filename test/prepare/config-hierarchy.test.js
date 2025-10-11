@@ -31,9 +31,9 @@ describe('Configuration Hierarchy', () => {
 
     assert.strictEqual(exitCode, 0, 'Should succeed with hierarchical config')
 
-    const configYml = readFileSync(join(paths.root, 'config.yml'), 'utf-8')
-    assert.ok(configYml.includes('Main Site'), 'Should have site config from root')
-    assert.ok(configYml.includes('drafts') || configYml.includes('temp.md'), 'Should merge exclude patterns')
+    const config = readFileSync(join(paths.root, 'config.yml'), 'utf-8')
+    assert.ok(config.includes('Main Site'), 'Should have site config from root')
+    assert.ok(config.includes('drafts') || config.includes('temp.md'), 'Should merge exclude patterns')
   })
 
   it('should inherit site config from root only', async () => {
@@ -50,9 +50,9 @@ describe('Configuration Hierarchy', () => {
 
     assert.strictEqual(exitCode, 0, 'Should succeed')
 
-    const configYml = readFileSync(join(paths.root, 'config.yml'), 'utf-8')
-    assert.ok(configYml.includes('name: Docs'), 'Should use root site config')
-    assert.ok(!configYml.includes('API Docs'), 'Should not use subdirectory site config')
+    const config = readFileSync(join(paths.root, 'config.yml'), 'utf-8')
+    assert.ok(config.includes('name: Docs'), 'Should use root site config')
+    assert.ok(!config.includes('API Docs'), 'Should not use subdirectory site config')
   })
 
   it('should handle exclude patterns at different levels', async () => {
@@ -124,12 +124,12 @@ describe('Configuration Hierarchy', () => {
 
     assert.strictEqual(exitCode, 0, 'Should succeed')
 
-    const indexContent = readFileSync(join(paths.workspace, 'src/content/docs/index.md'), 'utf-8')
-    assert.ok(indexContent.includes('Custom Home Title'), 'Should apply file-specific title')
-    assert.ok(indexContent.includes('Custom description'), 'Should apply file-specific description')
+    const index = readFileSync(join(paths.workspace, 'src/content/docs/index.md'), 'utf-8')
+    assert.ok(index.includes('Custom Home Title'), 'Should apply file-specific title')
+    assert.ok(index.includes('Custom description'), 'Should apply file-specific description')
 
-    const otherContent = readFileSync(join(paths.workspace, 'src/content/docs/other.md'), 'utf-8')
-    assert.ok(otherContent.includes('title: Other'), 'Other file should use default title from H1')
+    const other = readFileSync(join(paths.workspace, 'src/content/docs/other.md'), 'utf-8')
+    assert.ok(other.includes('title: Other'), 'Other file should use default title from H1')
   })
 
   it('should handle missing site config gracefully', async () => {

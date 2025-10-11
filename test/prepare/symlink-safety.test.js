@@ -33,8 +33,8 @@ describe('Symlink Cleanup Safety', () => {
 
     // Create a marker file in the ACTUAL node_modules (symlink target)
     // This file should NOT be deleted when we clean .docfu/workspace/
-    const markerPath = join(actualNodeModules, '.test-marker-do-not-delete')
-    writeFileSync(markerPath, 'This file should not be deleted when cleaning .docfu/workspace/')
+    const marker = join(actualNodeModules, '.test-marker-do-not-delete')
+    writeFileSync(marker, 'This file should not be deleted when cleaning .docfu/workspace/')
 
     const markerThroughSymlink = join(symlinkPath, '.test-marker-do-not-delete')
     assert.ok(existsSync(markerThroughSymlink), 'Marker should be accessible through symlink')
@@ -48,10 +48,10 @@ describe('Symlink Cleanup Safety', () => {
 
     assert.ok(existsSync(actualNodeModules), 'Actual node_modules should still exist')
 
-    assert.ok(existsSync(markerPath), 'Marker in actual node_modules should still exist - CRITICAL SAFETY CHECK')
+    assert.ok(existsSync(marker), 'Marker in actual node_modules should still exist - CRITICAL SAFETY CHECK')
 
     const fs = await import('fs/promises')
-    await fs.rm(markerPath, {force: true})
+    await fs.rm(marker, {force: true})
   })
 
   it('should handle multiple cleanup cycles without deleting target', async () => {
@@ -62,19 +62,19 @@ describe('Symlink Cleanup Safety', () => {
     writeFileSync(join(paths.source, 'index.md'), '# Test')
 
     const actualNodeModules = resolve('node_modules')
-    const markerPath = join(actualNodeModules, '.test-marker-multiple-cleanups')
-    writeFileSync(markerPath, 'Should survive multiple cleanups')
+    const marker = join(actualNodeModules, '.test-marker-multiple-cleanups')
+    writeFileSync(marker, 'Should survive multiple cleanups')
 
     // Run prepare 3 times - each should clean and recreate
     for (let i = 1; i <= 3; i++) {
       const {exitCode} = await runCLI(['prepare', paths.source, '--root', paths.root])
       assert.strictEqual(exitCode, 0, `Prepare ${i} should succeed`)
 
-      assert.ok(existsSync(markerPath), `Marker should survive cleanup cycle ${i}`)
+      assert.ok(existsSync(marker), `Marker should survive cleanup cycle ${i}`)
     }
 
     const fs = await import('fs/promises')
-    await fs.rm(markerPath, {force: true})
+    await fs.rm(marker, {force: true})
   })
 
   it('should handle missing node_modules gracefully', async () => {

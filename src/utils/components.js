@@ -117,7 +117,7 @@ export function extractPropsFromComponent(componentPath) {
     const propRegex = /@prop\s+\{[^}]+\}\s+(\[)?(\w+)(\])?/g
     let match
     while ((match = propRegex.exec(frontmatter)) !== null) {
-      jsdocProps.push(match[2]) // match[2] is the prop name
+      jsdocProps.push(match[2])
     }
 
     if (jsdocProps.length > 0) return jsdocProps

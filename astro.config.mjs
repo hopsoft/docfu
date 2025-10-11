@@ -21,7 +21,6 @@ const sidebar = buildSidebar(manifest, config)
 const userComponents = manifest.components?.items || []
 const components = getStarlightOverrides(userComponents)
 
-// Map theme names to their plugin functions
 const themes = {
   nova: starlightThemeNova(),
   starlight: null,
@@ -33,12 +32,12 @@ const customCss = ['./src/styles/docfu.css', ...userCss]
 
 export default defineConfig({
   outDir: '../dist',
-  cacheDir: '../.astro',
+  cacheDir: '.astro',
   site,
   trailingSlash: 'never',
 
   vite: {
-    cacheDir: '../.vite',
+    cacheDir: '.vite',
   },
 
   // Integration order matters: Astro processes sequentially (preprocessors → processors → renderers)

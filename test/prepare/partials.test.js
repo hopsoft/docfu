@@ -51,15 +51,12 @@ describe('Markdoc Partials', () => {
       'Original partial .md should not exist'
     )
 
-    const mainContent = await readFile(join(paths.workspace, 'src/content/docs/with-mdoc-partial.mdoc'), 'utf-8')
-    assert.ok(mainContent.includes('file="_partials/markdoc-partial.mdoc"'), 'Reference should be updated to .mdoc')
-    assert.ok(!mainContent.includes('file="_partials/markdoc-partial.md"'), 'Should not contain old .md reference')
+    const main = await readFile(join(paths.workspace, 'src/content/docs/with-mdoc-partial.mdoc'), 'utf-8')
+    assert.ok(main.includes('file="_partials/markdoc-partial.mdoc"'), 'Reference should be updated to .mdoc')
+    assert.ok(!main.includes('file="_partials/markdoc-partial.md"'), 'Should not contain old .md reference')
 
-    const partialContent = await readFile(
-      join(paths.workspace, 'src/content/docs/_partials/markdoc-partial.mdoc'),
-      'utf-8'
-    )
-    assert.ok(partialContent.includes('{% badge'), 'Partial should contain markdoc syntax')
+    const partial = await readFile(join(paths.workspace, 'src/content/docs/_partials/markdoc-partial.mdoc'), 'utf-8')
+    assert.ok(partial.includes('{% badge'), 'Partial should contain markdoc syntax')
   })
 
   it('should preserve partials directory structure', async () => {
