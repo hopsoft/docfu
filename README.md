@@ -1,5 +1,7 @@
 # 📚 Welcome to DocFu
 
+[![CI](https://github.com/hopsoft/docfu/actions/workflows/ci.yml/badge.svg)](https://github.com/hopsoft/docfu/actions/workflows/ci.yml)
+
 **The easiest way to turn your existing markdown into a professional website.**
 
 Just run it on your existing markdown project.
@@ -17,7 +19,7 @@ DocFu is the only static site generator that combines professional documentation
 - ✓ Works instantly with your existing markdown - no setup required
 - ✓ Multi-format support: Markdown, MDX, and Markdoc work seamlessly together
 - ✓ Zero-config components: Built-in + custom components work everywhere, no imports needed
-- ✓ Themeable: 2 professional themes included (more coming soon)
+- ✓ Themeable: 2 professional themes included (more soon)
 - ✓ Live preview with watch mode for instant feedback
 - ✓ Professional features: Full-text search, dark mode, responsive design
 - ✓ Static output that deploys anywhere
@@ -554,161 +556,152 @@ Run `npx docfu init` or create a `docfu.yml` config file in your markdown projec
 See [docfu.example.yml](docfu.example.yml) for all available options.
 
 > [!TIP]
-> Configuration priority: CLI flags > `docfu.yml` > environment variables > defaults
+> Configuration priority:
+>
+> 1. CLI flags
+> 2. `docfu.yml`
+> 3. environment variables
+> 4. defaults
 
-### Theme Selection
+- <details>
+  <summary><strong>Theme Selection</strong></summary>
 
-Choose between professional themes to match your documentation style.
+  Choose between professional themes to match your documentation style.
 
-<details>
-<summary>Example configuration</summary>
+  ```yaml
+  site:
+    name: My Documentation
+    url: https://docs.example.com
+    theme: nova # 'nova' (default, modern) or 'starlight' (classic)
+  ```
 
-```yaml
-site:
-  name: My Documentation
-  url: https://docs.example.com
-  theme: nova # 'nova' (default, modern) or 'starlight' (classic)
-```
+  **Available themes:**
+  - **nova** (default) - Modern, polished theme with enhanced visual design
+  - **starlight** - Classic Starlight theme with clean, minimal aesthetic
 
-**Available themes:**
+  More themes coming soon!
 
-- **nova** (default) - Modern, polished theme with enhanced visual design
-- **starlight** - Classic Starlight theme with clean, minimal aesthetic
+  </details>
 
-More themes coming soon!
+- <details>
+  <summary><strong>Custom Styling</strong></summary>
 
-</details>
+  Customize colors, fonts, layout, and more with CSS files—automatically discovered and loaded.
 
-### Custom Styling
+  **Zero configuration required!** Just place `.css` files in your `assets/` directory and they're automatically loaded.
 
-Customize colors, fonts, layout, and more with CSS files—automatically discovered and loaded.
+  Create `assets/styles/custom.css` in your docs:
 
-<details>
-<summary>How it works</summary>
+  ```css
+  /* Override Starlight CSS variables */
+  :root {
+    --sl-color-accent: #ff6b6b;
+    --sl-font: 'Inter', sans-serif;
+  }
 
-**Zero configuration required!** Just place `.css` files in your `assets/` directory and they're automatically loaded.
+  /* Custom element styles */
+  .sl-markdown-content h1 {
+    color: var(--sl-color-accent);
+  }
+  ```
 
-Create `assets/styles/custom.css` in your docs:
+  **Load order:**
+  - CSS files load alphabetically after DocFu's base styles
+  - Your styles take precedence and can override defaults
+  - Use numeric prefixes for explicit ordering: `01-base.css`, `02-theme.css`
 
-```css
-/* Override Starlight CSS variables */
-:root {
-  --sl-color-accent: #ff6b6b;
-  --sl-font: 'Inter', sans-serif;
-}
+  **Example structure:**
 
-/* Custom element styles */
-.sl-markdown-content h1 {
-  color: var(--sl-color-accent);
-}
-```
+  ```
+  docs/
+  └── assets/
+      ├── images/
+      │   └── logo.png
+      └── styles/
+          ├── custom.css
+          └── brand.css
+  ```
 
-**Load order:**
+  All CSS files under `assets/` are discovered automatically!
 
-- CSS files load alphabetically after DocFu's base styles
-- Your styles take precedence and can override defaults
-- Use numeric prefixes for explicit ordering: `01-base.css`, `02-theme.css`
+  </details>
 
-**Example structure:**
+- <details>
+  <summary><strong>File Exclusion</strong></summary>
 
-```
-docs/
-└── assets/
-    ├── images/
-    │   └── logo.png
-    └── styles/
-        ├── custom.css
-        └── brand.css
-```
+  Control which files are processed and indexed.
 
-All CSS files under `assets/` are discovered automatically!
+  ```yaml
+  # Completely exclude from processing
+  exclude:
+    - '*.tmp.md'
+    - CONTRIBUTING.md
+    - archive
 
-</details>
+  # Build but exclude from search
+  unlisted:
+    - drafts
+    - 'internal/**'
+    - 'wip-*.md'
+  ```
 
-### File Exclusion
+  - **exclude**: Files never processed or built
+  - **unlisted**: Files built and accessible, but hidden from search
 
-Control which files are processed and indexed.
+  </details>
 
-<details>
-<summary>Example configuration</summary>
+- <details>
+  <summary><strong>Custom Sidebar</strong></summary>
 
-```yaml
-# Completely exclude from processing
-exclude:
-  - '*.tmp.md'
-  - CONTRIBUTING.md
-  - archive
+  Customize navigation structure instead of using auto-generated sidebar.
 
-# Build but exclude from search
-unlisted:
-  - drafts
-  - 'internal/**'
-  - 'wip-*.md'
-```
+  ```yaml
+  sidebar:
+    - file: index.md
+      label: Home
+    - group: Guides
+      items:
+        - quickstart.md
+        - installation.md
+    - group: API
+      directory: api/ # Auto-generate from directory
+  ```
 
-- **exclude**: Files never processed or built
-- **unlisted**: Files built and accessible, but hidden from search
+  </details>
 
-</details>
+- <details>
+  <summary><strong>Root Directory Configuration</strong></summary>
 
-### Custom Sidebar
+  Customize where DocFu creates its build files:
 
-Customize navigation structure instead of using auto-generated sidebar.
+  ```yaml
+  # Change default .docfu directory location
+  root: /tmp/docfu-build
+  # or relative path
+  root: ../builds/.docfu
+  ```
 
-<details>
-<summary>Example configuration</summary>
+  **Configuration priority:** CLI `--root` flag > `docfu.yml` `root:` > `DOCFU_ROOT` env var > `.docfu` (default)
 
-```yaml
-sidebar:
-  - file: index.md
-    label: Home
-  - group: Guides
-    items:
-      - quickstart.md
-      - installation.md
-  - group: API
-    directory: api/ # Auto-generate from directory
-```
+  </details>
 
-</details>
+- <details>
+  <summary><strong>Hierarchical Configuration</strong></summary>
 
-### Root Directory Configuration
+  Place `docfu.yml` files in subdirectories for granular control.
 
-Customize where DocFu creates its build files:
+  ```
+  docs/
+  ├── docfu.yml           # Root config (site info, root directory)
+  ├── guides/
+  │   └── docfu.yml       # Guides-specific config (frontmatter defaults)
+  └── api/
+      └── docfu.yml       # API-specific config (exclude patterns, frontmatter)
+  ```
 
-<details>
-<summary>Example configuration</summary>
+  Configs cascade naturally - subdirectory configs override parent configs for their scope.
 
-```yaml
-# Change default .docfu directory location
-root: /tmp/docfu-build
-# or relative path
-root: ../builds/.docfu
-```
-
-**Configuration priority:** CLI `--root` flag > `docfu.yml` `root:` > `DOCFU_ROOT` env var > `.docfu` (default)
-
-</details>
-
-### Hierarchical Configuration
-
-Place `docfu.yml` files in subdirectories for granular control.
-
-<details>
-<summary>Example structure</summary>
-
-```
-docs/
-├── docfu.yml           # Root config (site info, root directory)
-├── guides/
-│   └── docfu.yml       # Guides-specific config (frontmatter defaults)
-└── api/
-    └── docfu.yml       # API-specific config (exclude patterns, frontmatter)
-```
-
-Configs cascade naturally - subdirectory configs override parent configs for their scope.
-
-</details>
+  </details>
 
 ## Command Line Interface
 
@@ -839,8 +832,8 @@ Inspecting these files helps diagnose issues with syntax detection, component im
 **Directory structure:**
 
 ```
-.docfu/                      # Root (created in current working directory)
-├── workspace/              # Processed markdown + Astro project
+.docfu/                    # Root (created in current working directory)
+├── workspace/             # Processed markdown + Astro project
 │   ├── src/
 │   │   ├── components/    # Processed components (.astro)
 │   │   └── content/docs/  # Processed markdown files
@@ -848,8 +841,8 @@ Inspecting these files helps diagnose issues with syntax detection, component im
 │   ├── astro.config.mjs   # Generated Astro configuration
 │   └── package.json       # Astro project manifest
 ├── dist/                  # Built static site (ready for deployment)
-├── config.yml            # Merged DocFu configuration
-└── manifest.json         # Build manifest (components, docs, CSS)
+├── config.yml             # Merged DocFu configuration
+└── manifest.json          # Build manifest (components, docs, CSS)
 ```
 
 **What you'll find in the workspace:**
