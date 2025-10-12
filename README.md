@@ -17,6 +17,7 @@ npx docfu build /path/to/markdown
 DocFu is the only static site generator that combines professional documentation features with zero required setup and is entirely [CLI](https://en.wikipedia.org/wiki/Command-line_interface) driven.
 
 - ✓ Works instantly with your existing markdown - no setup required
+- ✓ Universal package manager support: npm, pnpm, Yarn (Classic/PnP), and Bun
 - ✓ Multi-format support: Markdown, MDX, and Markdoc work seamlessly together
 - ✓ Zero-config components: Built-in + custom components work everywhere, no imports needed
 - ✓ Themeable: 2 professional themes included (more soon)
@@ -59,7 +60,7 @@ _e.g. Product Teams, Technical Writers, etc._
 ## Prerequisites
 
 - [node](https://nodejs.org/) `>=20`
-- [npm](https://www.npmjs.com/) `>=10`
+- Any package manager: [npm](https://www.npmjs.com/) `>=10`, [pnpm](https://pnpm.io/), [Yarn](https://yarnpkg.com/) (Classic or PnP), or [Bun](https://bun.sh/)
 
 ## Table of Contents
 
@@ -916,13 +917,14 @@ See [Awesome Static Generators](https://github.com/myles/awesome-static-generato
 Most tools force you to choose: simple setup OR rich features. DocFu gives you both.
 
 1. **CLI-driven simplicity** - No setup or complex project to manage
-2. **Works with existing repos** - No restructuring, config files, or source modifications required
-3. **Multi-format support** - MD, MDX, and Markdoc work seamlessly together
-4. **Zero-config components** - Built-in + custom components work everywhere, no imports needed
-5. **Live preview with watch mode** - Instant feedback while writing
-6. **Professional features** - Full Starlight component library, search, themes, dark mode, responsive design
-7. **Isolated workspace** - Source stays pristine, builds with separate `.docfu/` directory
-8. **True static output** - Deploy anywhere (vs runtime rendering like Docsify)
+2. **Universal package manager support** - Works with npm, pnpm, Yarn (Classic/PnP), and Bun
+3. **Works with existing repos** - No restructuring, config files, or source modifications required
+4. **Multi-format support** - MD, MDX, and Markdoc work seamlessly together
+5. **Zero-config components** - Built-in + custom components work everywhere, no imports needed
+6. **Live preview with watch mode** - Instant feedback while writing
+7. **Professional features** - Full Starlight component library, search, themes, dark mode, responsive design
+8. **Isolated workspace** - Source stays pristine, builds with separate `.docfu/` directory
+9. **True static output** - Deploy anywhere (vs runtime rendering like Docsify)
 
 **Why DocFu over Starlight?** Starlight requires creating an Astro project with package.json, node_modules, and config files in your documentation repository. DocFu gives you all of Starlight's features without polluting your docs project: just point it at your existing markdown and build.
 
@@ -947,7 +949,7 @@ Contributions welcome! Fork the repo, make your changes, and open a pull request
 ```bash
 git clone https://github.com/hopsoft/docfu.git
 cd docfu
-npm install
+npm install  # or: pnpm install, yarn install, bun install
 npm test
 ```
 
