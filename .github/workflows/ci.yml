@@ -66,26 +66,29 @@ jobs:
             install: |
               corepack enable
               corepack prepare pnpm@latest --activate
-              pnpm install --frozen-lockfile
+              pnpm install
             test: pnpm test
           - name: yarn-classic
             install: |
               corepack enable
               corepack prepare yarn@1.22.22 --activate
-              yarn install --frozen-lockfile
+              yarn install
             test: yarn test
           - name: yarn-pnp
             install: |
               corepack enable
               corepack prepare yarn@stable --activate
-              echo 'nodeLinker: pnp' > .yarnrc.yml
+              cat > .yarnrc.yml << EOF
+              nodeLinker: pnp
+              enableImmutableInstalls: false
+              EOF
               yarn install
             test: yarn test
           - name: bun
             setup: |
               curl -fsSL https://bun.sh/install | bash
               echo "$HOME/.bun/bin" >> $GITHUB_PATH
-            install: bun install --frozen-lockfile
+            install: bun install
             test: bun test
     steps:
       - name: Checkout code
