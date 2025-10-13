@@ -59,7 +59,8 @@ export async function resolveBinary(packageName, importMetaUrl) {
   if (process.versions.pnp) {
     try {
       // Yarn PnP doesn't create .bin directories - use pnpapi to resolve
-      const pnpapi = await import('pnpapi')
+      const pnpapiModule = await import('pnpapi')
+      const pnpapi = pnpapiModule.default || pnpapiModule
 
       const packageJsonPath = pnpapi.resolveToUnqualified(`${packageName}/package.json`, process.cwd())
       const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
