@@ -61,7 +61,7 @@ jobs:
         pm:
           - name: npm
             pack: npm pack
-            install: npm install ./docfu-*.tgz --prefix /tmp/docfu-install
+            install: npm install $TARBALL --prefix /tmp/docfu-install
             binary: /tmp/docfu-install/node_modules/.bin/docfu
           - name: pnpm
             setup: |
@@ -71,8 +71,8 @@ jobs:
             install: |
               mkdir -p /tmp/docfu-install
               cd /tmp/docfu-install
-              pnpm init -y
-              pnpm add $GITHUB_WORKSPACE/docfu-*.tgz
+              pnpm init
+              pnpm add $TARBALL
             binary: /tmp/docfu-install/node_modules/.bin/docfu
           - name: yarn
             setup: |
@@ -83,7 +83,7 @@ jobs:
               mkdir -p /tmp/docfu-install
               cd /tmp/docfu-install
               yarn init -y
-              yarn add file:$GITHUB_WORKSPACE/docfu-*.tgz
+              yarn add file:$TARBALL
             binary: /tmp/docfu-install/node_modules/.bin/docfu
           - name: bun
             setup: |
@@ -94,7 +94,7 @@ jobs:
               mkdir -p /tmp/docfu-install
               cd /tmp/docfu-install
               bun init -y
-              bun add $GITHUB_WORKSPACE/docfu-*.tgz
+              bun add $TARBALL
             binary: /tmp/docfu-install/node_modules/.bin/docfu
     steps:
       - name: Checkout code
@@ -115,8 +115,14 @@ jobs:
       - name: Pack DocFu
         run: ${{ matrix.pm.pack }}
 
+      - name: Get tarball path
+        id: tarball
+        run: echo "path=$(ls $GITHUB_WORKSPACE/docfu-*.tgz)" >> $GITHUB_OUTPUT
+
       - name: Install packed tarball
         run: ${{ matrix.pm.install }}
+        env:
+          TARBALL: ${{ steps.tarball.outputs.path }}
 
       - name: Create test fixture
         run: |
