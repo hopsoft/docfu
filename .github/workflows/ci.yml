@@ -83,7 +83,7 @@ jobs:
               mkdir -p /tmp/docfu-install
               cd /tmp/docfu-install
               yarn init -y
-              yarn add file:$TARBALL
+              yarn add docfu@file:$TARBALL
             binary: /tmp/docfu-install/node_modules/.bin/docfu
           - name: bun
             setup: |
