@@ -53,30 +53,49 @@ jobs:
         run: npm test
 
   cli-variants:
-    name: CLI (${{ matrix.cli.name }})
+    name: CLI (${{ matrix.pm.name }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        cli:
-          - name: npx
-            setup: npm ci
-            cmd: npx --yes
-          - name: pnpm-dlx
+        pm:
+          - name: npm
+            pack: npm pack
+            install: npm install ./docfu-*.tgz --prefix /tmp/docfu-install
+            binary: /tmp/docfu-install/node_modules/.bin/docfu
+          - name: pnpm
             setup: |
               corepack enable
               corepack prepare pnpm@latest --activate
-            cmd: pnpm dlx
-          - name: yarn-dlx
+            pack: npm pack
+            install: |
+              mkdir -p /tmp/docfu-install
+              cd /tmp/docfu-install
+              pnpm init -y
+              pnpm add $GITHUB_WORKSPACE/docfu-*.tgz
+            binary: /tmp/docfu-install/node_modules/.bin/docfu
+          - name: yarn
             setup: |
               corepack enable
               corepack prepare yarn@stable --activate
-            cmd: yarn dlx
-          - name: bunx
+            pack: npm pack
+            install: |
+              mkdir -p /tmp/docfu-install
+              cd /tmp/docfu-install
+              yarn init -y
+              yarn add file:$GITHUB_WORKSPACE/docfu-*.tgz
+            binary: /tmp/docfu-install/node_modules/.bin/docfu
+          - name: bun
             setup: |
               curl -fsSL https://bun.sh/install | bash
               echo "$HOME/.bun/bin" >> $GITHUB_PATH
-            cmd: bunx
+            pack: npm pack
+            install: |
+              mkdir -p /tmp/docfu-install
+              cd /tmp/docfu-install
+              bun init -y
+              bun add $GITHUB_WORKSPACE/docfu-*.tgz
+            binary: /tmp/docfu-install/node_modules/.bin/docfu
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -86,11 +105,18 @@ jobs:
         with:
           node-version: 20
 
-      - name: Setup CLI tool
-        run: ${{ matrix.cli.setup }}
+      - name: Setup package manager
+        if: matrix.pm.setup
+        run: ${{ matrix.pm.setup }}
+
+      - name: Install build dependencies
+        run: npm ci
 
       - name: Pack DocFu
-        run: npm pack
+        run: ${{ matrix.pm.pack }}
+
+      - name: Install packed tarball
+        run: ${{ matrix.pm.install }}
 
       - name: Create test fixture
         run: |
@@ -114,11 +140,10 @@ jobs:
       - name: Test CLI execution
         run: |
           cd /tmp/docfu-test
-          TARBALL=$(ls $GITHUB_WORKSPACE/docfu-*.tgz)
-          ${{ matrix.cli.cmd }} $TARBALL prepare . --root .docfu
+          ${{ matrix.pm.binary }} prepare . --root .docfu
 
       - name: Verify output
         run: |
           test -f /tmp/docfu-test/.docfu/workspace/src/content/docs/index.md
           test -f /tmp/docfu-test/.docfu/workspace/src/content/docs/guides/quickstart.md
-          echo "✓ CLI ${{ matrix.cli.name }} works correctly"
+          echo "✓ CLI with ${{ matrix.pm.name }} works correctly"
