@@ -114,7 +114,7 @@ jobs:
       - name: Test CLI execution
         run: |
           cd /tmp/docfu-test
-          TARBALL=$(ls $GITHUB_WORKSPACE/hopsoft-docfu-*.tgz)
+          TARBALL=$(ls $GITHUB_WORKSPACE/docfu-*.tgz)
           ${{ matrix.cli.cmd }} $TARBALL prepare . --root .docfu
 
       - name: Verify output
