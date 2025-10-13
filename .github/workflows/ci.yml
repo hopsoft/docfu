@@ -52,44 +52,31 @@ jobs:
       - name: Run tests
         run: npm test
 
-  package-managers:
-    name: Test (${{ matrix.pm.name }})
+  cli-variants:
+    name: CLI (${{ matrix.cli.name }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        pm:
-          - name: npm
-            install: npm ci
-            test: npm test
-          - name: pnpm
-            install: |
+        cli:
+          - name: npx
+            setup: npm ci
+            cmd: npx --yes
+          - name: pnpm-dlx
+            setup: |
               corepack enable
               corepack prepare pnpm@latest --activate
-              pnpm install
-            test: pnpm test
-          - name: yarn-classic
-            install: |
-              corepack enable
-              corepack prepare yarn@1.22.22 --activate
-              yarn install
-            test: yarn test
-          - name: yarn-pnp
-            install: |
+            cmd: pnpm dlx
+          - name: yarn-dlx
+            setup: |
               corepack enable
               corepack prepare yarn@stable --activate
-              cat > .yarnrc.yml << EOF
-              nodeLinker: pnp
-              enableImmutableInstalls: false
-              EOF
-              yarn install
-            test: yarn test
-          - name: bun
+            cmd: yarn dlx
+          - name: bunx
             setup: |
               curl -fsSL https://bun.sh/install | bash
               echo "$HOME/.bun/bin" >> $GITHUB_PATH
-            install: bun install
-            test: bun test
+            cmd: bunx
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -99,12 +86,39 @@ jobs:
         with:
           node-version: 20
 
-      - name: Setup package manager
-        if: matrix.pm.setup
-        run: ${{ matrix.pm.setup }}
+      - name: Setup CLI tool
+        run: ${{ matrix.cli.setup }}
 
-      - name: Install dependencies
-        run: ${{ matrix.pm.install }}
+      - name: Pack DocFu
+        run: npm pack
 
-      - name: Run tests
-        run: ${{ matrix.pm.test }}
+      - name: Create test fixture
+        run: |
+          mkdir -p /tmp/docfu-test
+          cd /tmp/docfu-test
+          cat > docfu.yml << 'EOF'
+          site:
+            name: Test Docs
+            url: https://example.com
+          EOF
+          cat > index.md << 'EOF'
+          # Welcome
+          This is a test documentation site.
+          EOF
+          mkdir -p guides
+          cat > guides/quickstart.md << 'EOF'
+          # Quick Start
+          Get started quickly.
+          EOF
+
+      - name: Test CLI execution
+        run: |
+          cd /tmp/docfu-test
+          TARBALL=$(ls $GITHUB_WORKSPACE/hopsoft-docfu-*.tgz)
+          ${{ matrix.cli.cmd }} $TARBALL prepare . --root .docfu
+
+      - name: Verify output
+        run: |
+          test -f /tmp/docfu-test/.docfu/workspace/src/content/docs/index.md
+          test -f /tmp/docfu-test/.docfu/workspace/src/content/docs/guides/quickstart.md
+          echo "✓ CLI ${{ matrix.cli.name }} works correctly"
