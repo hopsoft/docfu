@@ -84,7 +84,8 @@ jobs:
               cd /tmp/docfu-install
               yarn init -y
               yarn add docfu@file:$TARBALL
-            binary: /tmp/docfu-install/node_modules/.bin/docfu
+            binary: yarn docfu
+            workdir: /tmp/docfu-install
           - name: bun
             setup: |
               curl -fsSL https://bun.sh/install | bash
@@ -145,8 +146,13 @@ jobs:
 
       - name: Test CLI execution
         run: |
-          cd /tmp/docfu-test
-          ${{ matrix.pm.binary }} prepare . --root .docfu
+          if [ "${{ matrix.pm.workdir }}" != "" ]; then
+            cd ${{ matrix.pm.workdir }}
+            ${{ matrix.pm.binary }} prepare /tmp/docfu-test --root /tmp/docfu-test/.docfu
+          else
+            cd /tmp/docfu-test
+            ${{ matrix.pm.binary }} prepare . --root .docfu
+          fi
 
       - name: Verify output
         run: |
