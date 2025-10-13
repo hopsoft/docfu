@@ -145,7 +145,16 @@ export function loadConfig() {
  */
 export function runCommand(cmd, args, options = {}) {
   return new Promise((resolve, reject) => {
-    const proc = spawn(cmd, args, {
+    // In Yarn PnP mode, use 'yarn node' to execute JavaScript files with proper PnP context
+    let actualCmd = cmd
+    let actualArgs = args
+
+    if (process.versions.pnp && cmd.endsWith('.js')) {
+      actualCmd = 'yarn'
+      actualArgs = ['node', cmd, ...args]
+    }
+
+    const proc = spawn(actualCmd, actualArgs, {
       stdio: 'inherit',
       env: process.env,
       ...options,
