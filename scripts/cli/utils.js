@@ -145,13 +145,14 @@ export function loadConfig() {
  */
 export function runCommand(cmd, args, options = {}) {
   return new Promise((resolve, reject) => {
-    // In Yarn PnP mode, use 'yarn node' to execute JavaScript files with proper PnP context
+    // In Yarn PnP mode, JavaScript files must be executed through node
+    // process.env already contains NODE_OPTIONS with --require .pnp.cjs
     let actualCmd = cmd
     let actualArgs = args
 
     if (process.versions.pnp && cmd.endsWith('.js')) {
-      actualCmd = 'yarn'
-      actualArgs = ['node', cmd, ...args]
+      actualCmd = process.execPath
+      actualArgs = [cmd, ...args]
     }
 
     const proc = spawn(actualCmd, actualArgs, {
