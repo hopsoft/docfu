@@ -13,6 +13,12 @@ describe('Symlink Cleanup Safety', () => {
   beforeAll(() => cleanupTestFile(import.meta.url))
 
   it('should remove symlink without deleting target contents', async () => {
+    // Skip in Yarn PnP mode (no node_modules directory)
+    if (process.versions.pnp) {
+      console.log('  ⊘ Skipping test in Yarn PnP mode (no node_modules)')
+      return
+    }
+
     const paths = getTestPaths('symlink-cleanup-safe', import.meta.url)
 
     mkdirSync(paths.source, {recursive: true})
@@ -55,6 +61,12 @@ describe('Symlink Cleanup Safety', () => {
   })
 
   it('should handle multiple cleanup cycles without deleting target', async () => {
+    // Skip in Yarn PnP mode (no node_modules directory)
+    if (process.versions.pnp) {
+      console.log('  ⊘ Skipping test in Yarn PnP mode (no node_modules)')
+      return
+    }
+
     const paths = getTestPaths('symlink-multiple-cleanups', import.meta.url)
 
     mkdirSync(paths.source, {recursive: true})
