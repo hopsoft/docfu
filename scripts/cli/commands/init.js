@@ -13,12 +13,12 @@ const __dirname = dirname(__filename)
  * Initialize DocFu configuration with interactive prompts
  * Creates a customized docfu.yml file in the source directory
  * @param {string} source - Optional source directory path (if not provided, prompts user)
- * @param {Object} options - Command options (yes)
+ * @param {Object} options - Command options (force)
  * @param {Object} packageJson - Package.json object containing version info
  * @returns {Promise<void>}
  * @example
  * await initCommand('./docs', {}, packageJson)
- * await initCommand('./docs', {yes: true}, packageJson)
+ * await initCommand('./docs', {force: true}, packageJson)
  */
 export default async function initCommand(source, options = {}, packageJson) {
   try {
@@ -35,7 +35,7 @@ export default async function initCommand(source, options = {}, packageJson) {
     )
 
     const configPath = join(resolve(sourceDir), 'docfu.yml')
-    if (existsSync(configPath) && !options.yes) {
+    if (existsSync(configPath) && !options.force) {
       console.log()
       console.log(theme.warning(`⚠ ${configPath} already exists`))
       const overwrite = await confirm({

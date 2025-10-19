@@ -75,8 +75,8 @@ _e.g. Product Teams, Technical Writers, etc._
 - [Troubleshooting](#troubleshooting)
 - [Similar Projects](#similar-projects)
 - [Tech Stack](#tech-stack)
-- [Contributing](#contributing)
 - [License](#license)
+- [Contributing](#contributing)
 
 <!-- tocstop -->
 
@@ -759,23 +759,23 @@ Commands:
   init [options] [source]     Initialize DocFu configuration
     Options:
       -r, --root <path>       root directory (default: .docfu)
-      -y, --yes               skip confirmation prompts
+      -f, --force             overwrite existing configuration without prompting
 
   prepare [options] <source>  Prepare documents for build
     Options:
       -r, --root <path>       root directory (default: .docfu)
-      -y, --yes               skip confirmation prompts
+      --unsafe                skip confirmations and allow external path deletion
 
   build [options] <source>    Build documentation site (default)
     Options:
       -r, --root <path>       root directory (default: .docfu)
-      -y, --yes               skip confirmation prompts
+      --unsafe                skip confirmations and allow external path deletion
       --dry-run               verify configuration without building
 
   preview [options] <source>  Preview documentation site locally
     Options:
       -r, --root <path>       root directory (default: .docfu)
-      -y, --yes               skip confirmation prompts
+      --unsafe                skip confirmations and allow external path deletion
       -p, --port <number>     preview server port (default: 4321)
       --watch                 watch for changes and rebuild
 
@@ -942,6 +942,10 @@ Most tools force you to choose: simple setup OR rich features. DocFu gives you b
 - [Starlight LLMs.txt](https://delucis.github.io/starlight-llms-txt/) - AI-friendly documentation generation
 - [Starlight](https://starlight.astro.build/) - Documentation theme
 
+## License
+
+[MIT](LICENSE)
+
 ## Contributing
 
 Contributions welcome! Fork the repo, make your changes, and open a pull request.
@@ -949,14 +953,63 @@ Contributions welcome! Fork the repo, make your changes, and open a pull request
 ```bash
 git clone https://github.com/hopsoft/docfu.git
 cd docfu
-npm install  # or: pnpm install, yarn install, bun install
+pnpm install
 npm test
 ```
 
-<details>
-<summary>Deployment</summary>
+### Testing
 
-Publishing new versions to npm requires the following steps.
+DocFu supports bun, npm, pnpm, and yarn.
+
+**Install Dependencies:**
+
+```bash
+# pnpm (via corepack - built into Node.js 20+)
+corepack enable
+corepack prepare pnpm@latest --activate
+
+# Yarn (via corepack)
+corepack enable
+corepack prepare yarn@stable --activate
+
+# Bun (via npm)
+npm install -g bun
+```
+
+**Run Tests:**
+
+```bash
+npm run test:bun   # bun
+npm run test:npm   # npm (default: npm test)
+npm run test:pnpm  # pnpm
+npm run test:yarn  # yarn
+npm run test:all   # tests all package managers
+```
+
+#### Manual Testing
+
+For fast iteration when testing local changes on actual documentation projects:
+
+```bash
+# Install local build globally
+npm run install:local
+
+# Test on your real docs
+docfu build /path/to/your-docs
+
+# Uninstall when done
+pnpm remove -g docfu
+```
+
+> [!NOTE]
+> If you get "Unable to find the global bin directory", run `pnpm setup` first to configure pnpm's global directory.
+
+This is much faster than running the full test suite and lets you verify changes on real-world documentation.
+
+---
+
+<details>
+<summary>Publishing</summary>
 
 1. Format and test
 
@@ -1006,7 +1059,3 @@ Publishing new versions to npm requires the following steps.
    Visit the [releases page](https://github.com/hopsoft/docfu/releases) and create a new release from the version tag with release notes.
 
 </details>
-
-## License
-
-[MIT](LICENSE)

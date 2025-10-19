@@ -4,16 +4,15 @@
  * Tests that DocFu auto-imports components and renders them correctly
  */
 
-import {describe, it, beforeAll} from 'vitest'
+import {describe, it} from 'vitest'
 import assert from 'assert'
 import {existsSync} from 'fs'
 import {join} from 'path'
 import {readFileSync} from 'fs'
-import {runCLI, getTestPaths, createInlineFixtures, cleanupTestFile} from '../helpers.js'
+import {runCLI} from '../utils.js'
+import {getTestPaths, createFixtures, createInlineFixtures} from '../utils.js'
 
 describe('Components', () => {
-  beforeAll(() => cleanupTestFile(import.meta.url))
-
   describe('Aside Component', () => {
     it('should render Aside with MDX syntax', async () => {
       const paths = getTestPaths('aside-mdx', import.meta.url)

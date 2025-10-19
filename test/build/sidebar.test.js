@@ -3,17 +3,16 @@
  * Tests auto-generated and explicit sidebar configurations
  */
 
-import {describe, it, beforeAll} from 'vitest'
+import {describe, it} from 'vitest'
 import assert from 'assert'
 import {existsSync, readFileSync, mkdirSync, writeFileSync} from 'fs'
 import {join} from 'path'
 import * as yaml from 'js-yaml'
 import {buildSidebar} from '../../src/utils/sidebar.js'
-import {runCLI, getTestPaths, createInlineFixtures, cleanupTestFile} from '../helpers.js'
+import {runCLI} from '../utils.js'
+import {getTestPaths, createFixtures, createInlineFixtures} from '../utils.js'
 
 describe('Sidebar Generation', () => {
-  beforeAll(() => cleanupTestFile(import.meta.url))
-
   it('should auto-generate sidebar grouped by top-level directories', async () => {
     const paths = getTestPaths('sidebar-auto-generate', import.meta.url)
     await createInlineFixtures(paths, {

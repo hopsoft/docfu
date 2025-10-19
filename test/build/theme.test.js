@@ -3,15 +3,14 @@
  * Tests that theme can be configured in docfu.yml
  */
 
-import {describe, it, beforeAll} from 'vitest'
+import {describe, it} from 'vitest'
 import assert from 'assert'
 import {existsSync, readFileSync} from 'fs'
 import {join} from 'path'
-import {runCLI, getTestPaths, createFixtures, cleanupTestFile} from '../helpers.js'
+import {runCLI} from '../utils.js'
+import {getTestPaths, createFixtures, createInlineFixtures} from '../utils.js'
 
 describe('Theme Configuration', () => {
-  beforeAll(() => cleanupTestFile(import.meta.url))
-
   it('should build with nova theme when configured', async () => {
     const paths = getTestPaths('theme-nova', import.meta.url)
     await createFixtures(paths, 'theme-nova', ['docfu.yml', 'index.md'])

@@ -3,14 +3,13 @@
  * Verifies Icon component with .inline class displays icons inline
  */
 
-import {describe, it, beforeAll} from 'vitest'
+import {describe, it} from 'vitest'
 import assert from 'assert'
 import {existsSync} from 'fs'
 import {readFileSync} from 'fs'
 import {join} from 'path'
-import {runCLI, getTestPaths, createInlineFixtures, cleanupTestFile} from '../helpers.js'
-
-beforeAll(() => cleanupTestFile(import.meta.url))
+import {runCLI} from '../utils.js'
+import {getTestPaths, createFixtures, createInlineFixtures} from '../utils.js'
 
 describe('Icon Component - Inline CSS Class', () => {
   it('should support Icon with inline class in MDX', async () => {

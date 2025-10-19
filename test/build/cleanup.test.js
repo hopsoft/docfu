@@ -3,15 +3,14 @@
  * Tests workspace/dist cleanup, stale files, and build reproducibility
  */
 
-import {describe, it, beforeAll} from 'vitest'
+import {describe, it} from 'vitest'
 import assert from 'assert'
 import {existsSync, writeFileSync, mkdirSync, readdirSync, readFileSync} from 'fs'
 import {join} from 'path'
-import {runCLI, getTestPaths, cleanupTestFile, createInlineFixtures} from '../helpers.js'
+import {runCLI} from '../utils.js'
+import {getTestPaths, createFixtures, createInlineFixtures} from '../utils.js'
 
 describe('Build Cleanup', () => {
-  beforeAll(() => cleanupTestFile(import.meta.url))
-
   it('should clean workspace on subsequent prepare', async () => {
     const paths = getTestPaths('cleanup-workspace', import.meta.url)
     await createInlineFixtures(paths, {

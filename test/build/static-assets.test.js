@@ -3,15 +3,14 @@
  * Tests images, PDFs, CSS, JS, and other non-markdown files
  */
 
-import {describe, it, beforeAll} from 'vitest'
+import {describe, it} from 'vitest'
 import assert from 'assert'
 import {existsSync, writeFileSync, mkdirSync, readFileSync} from 'fs'
 import {join} from 'path'
-import {runCLI, getTestPaths, cleanupTestFile, createInlineFixtures} from '../helpers.js'
+import {runCLI} from '../utils.js'
+import {getTestPaths, createFixtures, createInlineFixtures} from '../utils.js'
 
 describe('Static Assets', () => {
-  beforeAll(() => cleanupTestFile(import.meta.url))
-
   it('should copy image files to workspace and dist', async () => {
     const paths = getTestPaths('assets-images', import.meta.url)
 

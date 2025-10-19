@@ -2,7 +2,7 @@ import {defineConfig} from 'vitest/config'
 import {availableParallelism} from 'node:os'
 
 const cores = availableParallelism()
-const maxWorkers = cores <= 2 ? 1 : cores <= 4 ? 2 : 3
+const maxWorkers = Math.ceil(cores * 0.3)
 
 export default defineConfig({
   test: {

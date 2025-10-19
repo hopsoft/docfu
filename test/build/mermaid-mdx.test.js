@@ -7,14 +7,13 @@
  * Fence component also works for explicit control (now auto-imported)
  */
 
-import {describe, it, beforeAll} from 'vitest'
+import {describe, it} from 'vitest'
 import assert from 'assert'
 import {existsSync} from 'fs'
 import {readFileSync} from 'fs'
 import {join} from 'path'
-import {runCLI, getTestPaths, createInlineFixtures, cleanupTestFile} from '../helpers.js'
-
-beforeAll(() => cleanupTestFile(import.meta.url))
+import {runCLI} from '../utils.js'
+import {getTestPaths, createFixtures, createInlineFixtures} from '../utils.js'
 
 describe('Mermaid in MDX', () => {
   it('should handle standard mermaid code blocks in .mdx files', async () => {

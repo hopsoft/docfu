@@ -1,20 +1,10 @@
 import spawn from 'cross-spawn'
-import {existsSync, readFileSync} from 'fs'
-import {homedir} from 'os'
+import yaml from 'js-yaml'
 import {dirname, join, resolve} from 'path'
 import {fileURLToPath} from 'url'
-import {detect} from 'detect-package-manager'
-import yaml from 'js-yaml'
+import {homedir} from 'os'
 import theme from './theme.js'
 
-/**
- * Expand tilde (~) to home directory
- * @param {string} filepath - Path that may contain tilde
- * @returns {string} Resolved absolute path with tilde expanded
- * @example
- * expandTilde('~/docs') // '/Users/username/docs'
- * expandTilde('./docs') // './docs' (unchanged)
- */
 export function expandTilde(filepath) {
   if (!filepath) return filepath
   if (filepath === '~') return homedir()
@@ -22,103 +12,39 @@ export function expandTilde(filepath) {
   return filepath
 }
 
-/**
- * Resolve node_modules directory that contains a specific binary
- * Handles npm hoisting where dependencies may be in parent node_modules
- * @param {string} binaryName - Name of the binary to locate (e.g., 'astro', 'http-server')
- * @param {string} importMetaUrl - import.meta.url from calling module
- * @returns {string} Path to node_modules directory containing the binary
- * @example
- * const nodeModules = resolveNodeModules('astro', import.meta.url)
- * const astroBin = join(nodeModules, '.bin/astro')
- */
 export function resolveNodeModules(binaryName, importMetaUrl) {
   const __dirname = dirname(fileURLToPath(importMetaUrl))
   const packageRoot = resolve(__dirname, '../../..')
-
-  // Check parent node_modules first (npm hoists dependencies when using npx)
   const parentNodeModules = resolve(packageRoot, '..')
+
+  // If parent has .bin with our binary, use parent (npm hoisting, npx)
   if (existsSync(join(parentNodeModules, '.bin', binaryName))) return parentNodeModules
 
+  // Default to local node_modules
   return join(packageRoot, 'node_modules')
 }
 
-/**
- * Resolve binary path for any package manager (npm, pnpm, Yarn Classic, Yarn PnP, Bun)
- * Detects package manager and uses appropriate resolution strategy
- * @param {string} packageName - Name of the package containing the binary (e.g., 'astro', 'http-server')
- * @param {string} importMetaUrl - import.meta.url from calling module
- * @returns {Promise<string>} Absolute path to the binary executable
- * @throws {Error} If binary cannot be resolved
- * @example
- * const astroBin = await resolveBinary('astro', import.meta.url)
- * await runCommand(astroBin, ['build'], {cwd: workspace})
- */
 export async function resolveBinary(packageName, importMetaUrl) {
-  // Check for Yarn PnP mode
-  if (process.versions.pnp) {
-    try {
-      // Yarn PnP doesn't create .bin directories - use pnpapi to resolve
-      const pnpapiModule = await import('pnpapi')
-      const pnpapi = pnpapiModule.default || pnpapiModule
+  const __dirname = dirname(fileURLToPath(importMetaUrl))
+  const packageRoot = resolve(__dirname, '../../..')
+  const nodeModules = resolveNodeModules(packageName, importMetaUrl)
 
-      const packageJsonPath = pnpapi.resolveToUnqualified(`${packageName}/package.json`, process.cwd())
-      const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
+  const binLocations = [join(nodeModules, '.bin', packageName), join(packageRoot, 'node_modules', '.bin', packageName)]
 
-      // Get binary path from package.json bin field
-      let binaryPath
-      if (typeof packageJson.bin === 'string') {
-        binaryPath = packageJson.bin
-      } else if (typeof packageJson.bin === 'object') {
-        // bin field can be an object with multiple binaries
-        binaryPath = packageJson.bin[packageName] || Object.values(packageJson.bin)[0]
-      }
-
-      if (!binaryPath) {
-        throw new Error(`Package ${packageName} does not expose a binary`)
-      }
-
-      const packageDir = dirname(packageJsonPath)
-      const resolvedPath = resolve(packageDir, binaryPath)
-
-      if (!existsSync(resolvedPath)) {
-        throw new Error(`Binary not found at ${resolvedPath}`)
-      }
-
-      return resolvedPath
-    } catch (error) {
-      throw new Error(
-        `Failed to resolve binary '${packageName}' in Yarn PnP mode: ${error.message}\n` +
-          `Hint: Ensure ${packageName} is listed in your dependencies.`
-      )
+  for (const binaryPath of binLocations) {
+    if (existsSync(binaryPath)) {
+      return {binaryPath, nodeModulesPath: nodeModules}
     }
   }
 
-  // For npm, pnpm, Yarn Classic, and Bun - use traditional .bin resolution
-  const nodeModules = resolveNodeModules(packageName, importMetaUrl)
-  const binaryPath = join(nodeModules, '.bin', packageName)
-
-  if (!existsSync(binaryPath)) {
-    const pm = await detect().catch(() => 'npm')
-    throw new Error(
-      `Binary '${packageName}' not found at ${binaryPath}\n` +
-        `Package manager: ${pm}\n` +
-        `Hint: Ensure ${packageName} is listed in your dependencies and run '${pm} install'.`
-    )
-  }
-
-  return binaryPath
+  // Binary not found in any location
+  throw new Error(
+    `Binary '${packageName}' not found\n` +
+      `Searched: ${binLocations.join(', ')}\n` +
+      `Hint: Ensure ${packageName} is listed in your dependencies and run 'npm install'.`
+  )
 }
 
-/**
- * Load docfu.yml from current working directory if it exists
- * @returns {Object|null} Parsed configuration object or null if not found/invalid
- * @example
- * const config = loadConfig()
- * if (config) {
- *   console.log(config.workspace) // '.docfu/workspace'
- * }
- */
 export function loadConfig() {
   const configPath = join(process.cwd(), 'docfu.yml')
   if (!existsSync(configPath)) return null
@@ -132,30 +58,9 @@ export function loadConfig() {
   }
 }
 
-/**
- * Run a command and return a promise
- * @param {string} cmd - Command to execute
- * @param {string[]} args - Command arguments
- * @param {Object} options - Spawn options (stdio, shell, cwd, env, etc.)
- * @returns {Promise<void>} Resolves on success, rejects on error or non-zero exit
- * @example
- * await runCommand('node', ['script.js'])
- * await runCommand('npm', ['run', 'build'], {cwd: '/path/to/project'})
- * await runCommand('npm', ['run', 'build'], {env: {...process.env, FOO: 'bar'}})
- */
 export function runCommand(cmd, args, options = {}) {
   return new Promise((resolve, reject) => {
-    // In Yarn PnP mode, JavaScript files must be executed through node
-    // process.env already contains NODE_OPTIONS with --require .pnp.cjs
-    let actualCmd = cmd
-    let actualArgs = args
-
-    if (process.versions.pnp && cmd.endsWith('.js')) {
-      actualCmd = process.execPath
-      actualArgs = [cmd, ...args]
-    }
-
-    const proc = spawn(actualCmd, actualArgs, {
+    const proc = spawn(cmd, args, {
       stdio: 'inherit',
       env: process.env,
       ...options,
@@ -167,16 +72,6 @@ export function runCommand(cmd, args, options = {}) {
   })
 }
 
-/**
- * Get resolved paths from options and source
- * Priority: CLI flags > docfu.yml > environment variables > defaults
- * @param {string} source - Source documentation directory path
- * @param {Object} options - CLI options object with root property
- * @returns {{source: string, root: string, workspace: string, dist: string}} Resolved absolute paths
- * @example
- * const paths = getResolvedPaths('./docs', {root: '.docfu'})
- * // {source: '/abs/path/docs', root: '/abs/path/.docfu', workspace: '/abs/path/.docfu/workspace', dist: '/abs/path/.docfu/dist'}
- */
 export function getResolvedPaths(source, options) {
   const config = loadConfig()
 
@@ -200,13 +95,6 @@ export function getResolvedPaths(source, options) {
   }
 }
 
-/**
- * Set environment variables for child processes
- * @param {{source: string, root: string, workspace: string, dist: string}} paths - Resolved absolute paths
- * @example
- * setEnvVars({source: '/abs/docs', root: '/abs/.docfu', workspace: '/abs/.docfu/workspace', dist: '/abs/.docfu/dist'})
- * // Sets DOCFU_SOURCE and DOCFU_ROOT env vars
- */
 export function setEnvVars(paths) {
   process.env.DOCFU_SOURCE = paths.source
   process.env.DOCFU_ROOT = paths.root

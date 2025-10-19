@@ -1,0 +1,35 @@
+#!/usr/bin/env node
+
+import {Command} from 'commander'
+import {execSync} from 'child_process'
+
+// Parse CLI arguments
+const program = new Command()
+program
+  .name('test')
+  .description('Run docfu test suite with package manager support')
+  .option('--pm <manager>', 'Package manager to use (npm, pnpm, yarn, bun)', 'npm')
+  .argument('[path]', 'Optional path to test directory or file')
+  .addHelpText(
+    'after',
+    `
+Examples:
+  $ npm test                            # Run all tests with npm
+  $ npm test -- test/prepare            # Run prepare tests only
+  $ npm test -- --pm yarn test/build    # Run build tests with yarn
+  $ npm test -- --pm pnpm test/init/init.test.js  # Run single test file with pnpm
+`
+  )
+  .parse()
+
+const pm = program.opts().pm
+const path = program.args[0] || ''
+
+const commands = {
+  bun: `bunx vitest run ${path}`,
+  yarn: `yarn dlx vitest run ${path}`,
+  pnpm: `pnpmx vitest run ${path}`,
+  npm: `npx vitest run ${path}`,
+}
+
+execSync(commands[pm] || commands.npm, {stdio: 'inherit'})

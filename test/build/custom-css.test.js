@@ -3,15 +3,14 @@
  * Tests that CSS files in assets/ are automatically discovered and loaded
  */
 
-import {describe, it, beforeAll} from 'vitest'
+import {describe, it} from 'vitest'
 import assert from 'assert'
 import {existsSync, readFileSync, writeFileSync, mkdirSync} from 'fs'
 import {join} from 'path'
-import {runCLI, getTestPaths, cleanupTestFile, createInlineFixtures} from '../helpers.js'
+import {runCLI} from '../utils.js'
+import {getTestPaths, createFixtures, createInlineFixtures} from '../utils.js'
 
 describe('Custom CSS Auto-Discovery', () => {
-  beforeAll(() => cleanupTestFile(import.meta.url))
-
   it('should discover and load single CSS file from assets', async () => {
     const paths = getTestPaths('css-single', import.meta.url)
 

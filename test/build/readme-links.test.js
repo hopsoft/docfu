@@ -3,14 +3,13 @@
  * Validates that the final HTML has correct hrefs
  */
 
-import {describe, it, beforeAll} from 'vitest'
+import {describe, it} from 'vitest'
 import assert from 'assert'
 import {existsSync} from 'fs'
 import {readFile} from 'fs/promises'
 import {join} from 'path'
-import {runCLI, getTestPaths, createInlineFixtures, cleanupTestFile} from '../helpers.js'
-
-beforeAll(() => cleanupTestFile(import.meta.url))
+import {runCLI} from '../utils.js'
+import {getTestPaths, createFixtures, createInlineFixtures} from '../utils.js'
 
 describe('README Links in Built HTML', () => {
   it('should build correct hrefs for README links', async () => {
@@ -28,9 +27,7 @@ Links to READMEs:
       'api/README.md': '---\ntitle: API\n---\n\n# API',
     })
 
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root], {
-      env: {DOCFU_ENGINE: paths.engine},
-    })
+    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
 
     assert.strictEqual(exitCode, 0, 'Build should succeed')
 
@@ -57,9 +54,7 @@ Links to READMEs:
       'guides/README.md': '---\ntitle: Guides\n---\n\n# Guides Landing',
     })
 
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root], {
-      env: {DOCFU_ENGINE: paths.engine},
-    })
+    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
 
     assert.strictEqual(exitCode, 0, 'Build should succeed')
 
@@ -87,9 +82,7 @@ Navigation:
       'guides/README.md': '---\ntitle: Guides\n---\n\n# Guides',
     })
 
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root], {
-      env: {DOCFU_ENGINE: paths.engine},
-    })
+    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
 
     assert.strictEqual(exitCode, 0, 'Build should succeed')
 
@@ -97,9 +90,11 @@ Navigation:
 
     const hrefs = [...gettingStartedHtml.matchAll(/href="([^"]*)"/g)].map(m => m[1])
 
-    // Should have links transformed from README.md to index.md
-    const hasIndexLinks = hrefs.some(href => href.includes('index.md'))
-    assert.ok(hasIndexLinks, 'Should have links to index.md files')
+    // Should have links transformed from ../README.md to / and ./README.md to /guides/
+    const hasRootLink = hrefs.some(href => href === '/')
+    const hasGuidesLink = hrefs.some(href => href === '/guides/')
+    assert.ok(hasRootLink, 'Should have link to root /')
+    assert.ok(hasGuidesLink, 'Should have link to /guides/')
 
     const hasReadmeHref = hrefs.some(href => /readme\.md/i.test(href))
     assert.ok(!hasReadmeHref, 'Should not have any README.md hrefs')

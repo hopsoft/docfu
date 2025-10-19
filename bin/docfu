@@ -1,89 +1,77 @@
 #!/usr/bin/env node
 
-/**
- * DocFu CLI
- * Professional-grade documentation site generator
- */
-
-import {readFileSync} from 'fs'
-import {fileURLToPath} from 'url'
-import {dirname, join} from 'path'
 import {Command} from 'commander'
-import initCommand from '../scripts/cli/commands/init.js'
-import prepareCommand from '../scripts/cli/commands/prepare.js'
-import buildCommand from '../scripts/cli/commands/build.js'
-import previewCommand from '../scripts/cli/commands/preview.js'
-import theme from '../scripts/cli/theme.js'
+import env from '../lib/env.js'
+import theme from '../lib/theme.js'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8'))
+// commands
+import init from '../lib/cli/init.js'
+import stage from '../lib/cli/stage.js'
+import build from '../lib/cli/build.js'
 
-// Create the main program
+// Initialize environment
+env.init(import.meta.url)
+
 const program = new Command()
 
 program
   .name('docfu')
   .description('Generate production-ready documentation websites from markdown')
-  .version(packageJson.version, '-v, --version', 'output version number')
+  .version(env.package.version, '-v, --version', 'output version number')
   .usage('[options] <source>')
-
-// Configure help styling
-program.configureHelp({
-  sortOptions: true,
-  styleArgumentDescription: theme.muted,
-  styleArgumentTerm: theme.secondary,
-  styleCommandTerm: theme.command,
-  styleOptionDescription: theme.muted,
-  styleOptionTerm: theme.secondary,
-  styleSubcommandDescription: theme.muted,
-  styleSubcommandTerm: theme.command,
-  styleTitle: theme.primary,
-})
-
-// Configure error output styling
-program.configureOutput({
-  outputError: (str, write) => write(theme.danger(str)),
-})
+  .configureHelp({
+    sortOptions: true,
+    styleArgumentDescription: theme.muted,
+    styleArgumentTerm: theme.secondary,
+    styleCommandTerm: theme.command,
+    styleOptionDescription: theme.muted,
+    styleOptionTerm: theme.secondary,
+    styleSubcommandDescription: theme.muted,
+    styleSubcommandTerm: theme.command,
+    styleTitle: theme.primary,
+  })
+  .configureOutput({
+    outputError: (str, write) => write(theme.danger(str)),
+  })
 
 // Init command - create docfu.yml configuration
 program
   .command('init')
   .description('Initialize DocFu configuration')
   .argument('[source]', 'path to markdown docs')
-  .option('-r, --root <path>', 'root directory (default: .docfu)')
-  .option('-y, --yes', 'skip confirmation prompts')
-  .action(async (source, options) => initCommand(source, options, packageJson))
+  .option('-s, --sandbox <path>', 'sandbox directory (default: .docfu)')
+  .option('-f, --force', 'overwrite existing configuration without prompting')
+  .action(async (source, options) => init(source, options))
 
-// Prepare command - process docs only (no build)
+// Stage command - process docs only (no build)
 program
-  .command('prepare')
-  .description('Prepare documents for build')
+  .command('stage')
+  .description('Stage documents for build')
   .argument('<source>', 'path to markdown docs')
-  .option('-r, --root <path>', 'root directory (default: .docfu)')
-  .option('-y, --yes', 'skip confirmation prompts')
-  .action(async (source, options) => prepareCommand(source, options, packageJson))
+  .option('-s, --sandbox <path>', 'sandbox directory (default: .docfu)')
+  .option('--unsafe', 'skip confirmations and allow external path deletion')
+  .action(async (source, options) => stage(source, options))
 
-// Build command - prepare and build static site (default)
+// Build command - stage and build static site (default)
 program
   .command('build', {isDefault: true})
   .description('Build documentation site (default)')
   .argument('<source>', 'path to markdown docs')
-  .option('-r, --root <path>', 'root directory (default: .docfu)')
-  .option('-y, --yes', 'skip confirmation prompts')
+  .option('-s, --sandbox <path>', 'sandbox directory (default: .docfu)')
+  .option('--unsafe', 'skip confirmations and allow external path deletion')
   .option('--dry-run', 'verify configuration without building')
-  .action(async (source, options) => buildCommand(source, options, packageJson))
+  .action(async (source, options) => build(source, options))
 
-// Preview command - prepare, build, and serve locally
+// Preview command - stage, build, and serve locally
 program
   .command('preview')
   .description('Preview documentation site locally')
   .argument('<source>', 'path to markdown docs')
-  .option('-r, --root <path>', 'root directory (default: .docfu)')
-  .option('-y, --yes', 'skip confirmation prompts')
+  .option('-s, --sandbox <path>', 'sandbox directory (default: .docfu)')
+  .option('--unsafe', 'skip confirmations and allow external path deletion')
   .option('-p, --port <number>', 'preview server port (default: 4321)', '4321')
   .option('--watch', 'watch for changes and rebuild')
-  .action(async (source, options) => previewCommand(source, options, packageJson))
+  .action(async (source, options) => previewCommand(source, options))
 
 // Add help examples
 program.addHelpText(
@@ -91,13 +79,13 @@ program.addHelpText(
   `
 ${theme.primary('Examples:')}
   ${theme.muted('$')} docfu ./docs
-  ${theme.muted('$')} docfu prepare ./docs
+  ${theme.muted('$')} docfu stage ./docs
   ${theme.muted('$')} docfu preview ./my-docs --port 3000
-  ${theme.muted('$')} docfu build ./docs --root /tmp/my-docs
+  ${theme.muted('$')} docfu build ./docs --sandbox /tmp/my-docs
 
 ${theme.primary('Environment Variables:')}
   ${theme.key('DOCFU_SOURCE')}   ${theme.muted('Source markdown directory')}
-  ${theme.key('DOCFU_ROOT')}     ${theme.muted('Root directory (default: .docfu)')}
+  ${theme.key('DOCFU_SANDBOX')}  ${theme.muted('Sandbox directory (default: .docfu)')}
 `
 )
 

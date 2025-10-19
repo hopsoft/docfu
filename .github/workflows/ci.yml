@@ -22,81 +22,40 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+
+      - name: Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@latest --activate
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Run lint
-        run: npm run lint
+        run: pnpm run lint
 
-  test:
-    name: Test (Node ${{ matrix.node-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [20, 22]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run tests
-        run: npm test
-
-  cli-variants:
-    name: CLI (${{ matrix.pm.name }})
+  package-test:
+    name: Package Test (${{ matrix.pm.name }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         pm:
           - name: npm
-            pack: npm pack
-            install: npm install $TARBALL --prefix /tmp/docfu-install
-            binary: /tmp/docfu-install/node_modules/.bin/docfu
+            script: test:npm
           - name: pnpm
+            script: test:pnpm
             setup: |
               corepack enable
               corepack prepare pnpm@latest --activate
-            pack: npm pack
-            install: |
-              mkdir -p /tmp/docfu-install
-              cd /tmp/docfu-install
-              pnpm init
-              pnpm add $TARBALL
-            binary: /tmp/docfu-install/node_modules/.bin/docfu
           - name: yarn
+            script: test:yarn
             setup: |
               corepack enable
               corepack prepare yarn@stable --activate
-            pack: npm pack
-            install: |
-              mkdir -p /tmp/docfu-install
-              cd /tmp/docfu-install
-              yarn init -y
-              yarn add docfu@file:$TARBALL
-            binary: yarn docfu
-            workdir: /tmp/docfu-install
           - name: bun
-            setup: |
-              curl -fsSL https://bun.sh/install | bash
-              echo "$HOME/.bun/bin" >> $GITHUB_PATH
-            pack: npm pack
-            install: |
-              mkdir -p /tmp/docfu-install
-              cd /tmp/docfu-install
-              bun init -y
-              bun add $TARBALL
-            binary: /tmp/docfu-install/node_modules/.bin/docfu
+            script: test:bun
+            setup: npm install -g bun
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -106,56 +65,17 @@ jobs:
         with:
           node-version: 20
 
+      - name: Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@latest --activate
+
       - name: Setup package manager
         if: matrix.pm.setup
         run: ${{ matrix.pm.setup }}
 
-      - name: Install build dependencies
-        run: npm ci
+      - name: Install test dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Pack DocFu
-        run: ${{ matrix.pm.pack }}
-
-      - name: Get tarball path
-        id: tarball
-        run: echo "path=$(ls $GITHUB_WORKSPACE/docfu-*.tgz)" >> $GITHUB_OUTPUT
-
-      - name: Install packed tarball
-        run: ${{ matrix.pm.install }}
-        env:
-          TARBALL: ${{ steps.tarball.outputs.path }}
-
-      - name: Create test fixture
-        run: |
-          mkdir -p /tmp/docfu-test
-          cd /tmp/docfu-test
-          cat > docfu.yml << 'EOF'
-          site:
-            name: Test Docs
-            url: https://example.com
-          EOF
-          cat > index.md << 'EOF'
-          # Welcome
-          This is a test documentation site.
-          EOF
-          mkdir -p guides
-          cat > guides/quickstart.md << 'EOF'
-          # Quick Start
-          Get started quickly.
-          EOF
-
-      - name: Test CLI execution
-        run: |
-          if [ "${{ matrix.pm.workdir }}" != "" ]; then
-            cd ${{ matrix.pm.workdir }}
-            ${{ matrix.pm.binary }} prepare /tmp/docfu-test --root /tmp/docfu-test/.docfu
-          else
-            cd /tmp/docfu-test
-            ${{ matrix.pm.binary }} prepare . --root .docfu
-          fi
-
-      - name: Verify output
-        run: |
-          test -f /tmp/docfu-test/.docfu/workspace/src/content/docs/index.md
-          test -f /tmp/docfu-test/.docfu/workspace/src/content/docs/guides/quickstart.md
-          echo "✓ CLI with ${{ matrix.pm.name }} works correctly"
+      - name: Run package test
+        run: pnpm run ${{ matrix.pm.script }}

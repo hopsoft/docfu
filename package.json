@@ -14,6 +14,7 @@
     "ssg",
     "static-site-generator"
   ],
+  "author": "Nate Hopkins <natehop@gmail.com> (@hopsoft)",
   "homepage": "https://github.com/hopsoft/docfu#readme",
   "bugs": {
     "url": "https://github.com/hopsoft/docfu/issues"
@@ -23,11 +24,8 @@
     "url": "https://github.com/hopsoft/docfu.git"
   },
   "license": "MIT",
-  "author": "Nathan Hopkins <natehop@gmail.com> (https://github.com/hopsoft)",
   "type": "module",
-  "bin": {
-    "docfu": "./bin/docfu"
-  },
+  "bin": "./bin/docfu",
   "files": [
     "LICENSE",
     "README.md",
@@ -40,12 +38,16 @@
     "src/",
     "tsconfig.json"
   ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "echo 'DocFu is ready for distribution (no build step required)'",
-    "format": "npm run toc && prettier --write ./bin ./public/**/*.js ./src ./scripts ./test *.js *.json *.md *.mjs *.yml",
-    "lint": "prettier --check ./bin ./public/**/*.js ./src ./scripts ./test *.js *.json *.md *.mjs *.yml",
-    "test": "vitest run",
-    "toc": "npx markdown-toc -i --maxdepth 2 README.md"
+    "format": "scripts/format",
+    "lint": "scripts/lint",
+    "install:local": "scripts/install-local",
+    "pkgmgr:reset": "scripts/pkgmgr-reset",
+    "test": "scripts/test"
   },
   "dependencies": {
     "@astrojs/markdoc": "0.15.8",
@@ -61,7 +63,7 @@
     "commander": "14.0.1",
     "cross-spawn": "7.0.6",
     "del": "8.0.1",
-    "detect-package-manager": "3.0.2",
+    "find-up": "^8.0.0",
     "glob": "11.0.3",
     "http-server": "14.1.1",
     "js-yaml": "4.1.0",
@@ -83,13 +85,9 @@
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
-    "dotenv": "^17.2.2",
     "prettier": "^3.6.2",
-    "typescript": "^5.7.3",
+    "tree-kill": "^1.2.2",
+    "typescript": "^5.9.3",
     "vitest": "^3.2.4"
-  },
-  "engines": {
-    "node": ">=20",
-    "npm": ">=10"
   }
 }

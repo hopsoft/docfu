@@ -4,15 +4,14 @@
  * Note: Full Astro builds are slow and tested separately
  */
 
-import {describe, it, beforeAll} from 'vitest'
+import {describe, it} from 'vitest'
 import assert from 'assert'
 import {existsSync, readFileSync, readdirSync} from 'fs'
 import {join} from 'path'
-import {runCLI, getTestPaths, createFixtures, cleanupTestFile} from '../helpers.js'
+import {runCLI} from '../utils.js'
+import {getTestPaths, createFixtures, createInlineFixtures} from '../utils.js'
 
 describe('Build Command', () => {
-  beforeAll(() => cleanupTestFile(import.meta.url))
-
   it('should prepare files for build', async () => {
     const paths = getTestPaths('build-prepare', import.meta.url)
     await createFixtures(paths, 'build', ['docfu.yml', 'index.md', 'guide.md'])

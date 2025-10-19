@@ -3,15 +3,14 @@
  * Tests mermaid rendering in .md and .mdoc files
  */
 
-import {describe, it, beforeAll} from 'vitest'
+import {describe, it} from 'vitest'
 import assert from 'assert'
 import {readFileSync} from 'fs'
 import {join} from 'path'
-import {runCLI, getTestPaths, createInlineFixtures, cleanupTestFile} from '../helpers.js'
+import {runCLI} from '../utils.js'
+import {getTestPaths, createFixtures, createInlineFixtures} from '../utils.js'
 
 describe('Mermaid Diagrams', () => {
-  beforeAll(() => cleanupTestFile(import.meta.url))
-
   it('should render mermaid diagrams in .md files', async () => {
     const paths = getTestPaths('mermaid-md', import.meta.url)
     await createInlineFixtures(paths, {

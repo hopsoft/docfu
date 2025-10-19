@@ -3,15 +3,14 @@
  * Tests duplicate slugs, special characters, unusual content patterns
  */
 
-import {describe, it, beforeAll} from 'vitest'
+import {describe, it} from 'vitest'
 import assert from 'assert'
 import {existsSync, readFileSync, mkdirSync, writeFileSync} from 'fs'
 import {join} from 'path'
-import {runCLI, getTestPaths, cleanupTestFile, createInlineFixtures} from '../helpers.js'
+import {runCLI} from '../utils.js'
+import {getTestPaths, createFixtures, createInlineFixtures} from '../utils.js'
 
 describe('Content Edge Cases', () => {
-  beforeAll(() => cleanupTestFile(import.meta.url))
-
   it('should handle duplicate slugs (same filename in different dirs)', async () => {
     const paths = getTestPaths('edge-duplicate-slugs', import.meta.url)
 

@@ -20,6 +20,7 @@ import {getTargetFormat, getTargetExtension} from './syntax.js'
 import {ALL_MARKDOWN_EXTENSIONS} from './patterns.js'
 import {discover, getApplicable} from './config.js'
 import {transformReadmeLinks} from './ast.js'
+import {transformRelativeLinks} from './links.js'
 
 const DEFAULT_ROOT = '.docfu'
 
@@ -92,11 +93,11 @@ const discoverCss = async (path, workspace) => {
  * Prompt user for confirmation before destructive operation
  * @param {string} message - Confirmation message to display
  * @param {Object} [options] - Options object
- * @param {boolean} [options.yes] - Skip confirmation if true
+ * @param {boolean} [options.unsafe] - Skip confirmation if true
  * @returns {Promise<boolean>} True if user confirmed, false otherwise
  */
 const confirm = (message, options = {}) => {
-  if (process.env.CI || options.yes) return Promise.resolve(true)
+  if (options.unsafe) return Promise.resolve(true)
 
   const rl = createInterface({
     input: process.stdin,
@@ -308,7 +309,7 @@ export async function processDocuments(source, root, options = {}) {
     // Delete entire root directory
     // Safe to proceed: passed all safety checks above + user confirmation
     deleteSync([root], {
-      force: false, // Safety: refuse to delete outside cwd
+      force: !!options.unsafe, // Allow deletion of absolute paths only if explicitly enabled via --unsafe flag
       followSymbolicLinks: false, // Safety: don't follow symlinks
       dot: true, // Required: allow deleting dotfiles like .DS_Store within root directory
     })
@@ -517,6 +518,9 @@ export async function processDocuments(source, root, options = {}) {
 
       const finalDestinationFile = getTargetExtension(workingDestinationFile, format)
 
+      // Transform relative markdown links to absolute site paths
+      const withTransformedLinks = transformRelativeLinks(transformed, finalDestinationFile, destination)
+
       const originalRelPath = relative(destination, destinationFile)
       const finalRelPath = relative(destination, finalDestinationFile)
       fileConversionMap.set(originalRelPath, finalRelPath)
@@ -538,7 +542,7 @@ export async function processDocuments(source, root, options = {}) {
         },
       })
 
-      await writeFile(finalDestinationFile, transformed)
+      await writeFile(finalDestinationFile, withTransformedLinks)
       console.log(`→ ${originFile} → ${finalDestinationFile}`)
     } else {
       await copyFile(originFile, destinationFile)

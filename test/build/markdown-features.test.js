@@ -3,15 +3,14 @@
  * Tests code blocks, tables, lists, links, blockquotes
  */
 
-import {describe, it, beforeAll} from 'vitest'
+import {describe, it} from 'vitest'
 import assert from 'assert'
 import {existsSync, readFileSync} from 'fs'
 import {join} from 'path'
-import {runCLI, getTestPaths, cleanupTestFile, createInlineFixtures} from '../helpers.js'
+import {runCLI} from '../utils.js'
+import {getTestPaths, createFixtures, createInlineFixtures} from '../utils.js'
 
 describe('Markdown Features', () => {
-  beforeAll(() => cleanupTestFile(import.meta.url))
-
   it('should handle code blocks with syntax highlighting', async () => {
     const paths = getTestPaths('md-code-blocks', import.meta.url)
     await createInlineFixtures(paths, {

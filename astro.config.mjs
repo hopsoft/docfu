@@ -33,12 +33,8 @@ const customCss = ['./src/styles/docfu.css', ...userCss]
 export default defineConfig({
   outDir: '../dist',
   cacheDir: '.astro',
+  vite: {cacheDir: '.vite'},
   site,
-  trailingSlash: 'never',
-
-  vite: {
-    cacheDir: '.vite',
-  },
 
   // Integration order matters: Astro processes sequentially (preprocessors → processors → renderers)
   integrations: [

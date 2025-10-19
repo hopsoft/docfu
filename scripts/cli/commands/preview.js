@@ -1,4 +1,3 @@
-import {join} from 'path'
 import spawn from 'cross-spawn'
 import chokidar from 'chokidar'
 import {getResolvedPaths, resolveBinary} from '../utils.js'
@@ -37,8 +36,8 @@ export default async function previewCommand(source, options, packageJson) {
     console.log(theme.muted('   Press Ctrl+C to stop'))
     console.log()
 
-    // Resolve http-server binary (handles all package managers: npm, pnpm, Yarn PnP, Bun)
-    const httpServerBin = await resolveBinary('http-server', import.meta.url)
+    // Resolve http-server binary
+    const {binaryPath: httpServerBin} = await resolveBinary('http-server', import.meta.url)
 
     // Spawn http-server as child process (non-blocking if watching)
     const server = spawn(httpServerBin, [paths.dist, '-p', options.port, '-c-1', '-o'], {
