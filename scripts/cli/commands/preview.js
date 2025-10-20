@@ -25,15 +25,17 @@ export default async function previewCommand(source, options, packageJson) {
 
     console.log(theme.primary(`Starting server on port ${options.port}...`))
     console.log()
-    console.log(`   ${theme.success('➜')} ${theme.muted('Local:')} ${theme.link(`http://localhost:${options.port}`)}`)
+    console.log(
+      `   ${theme.success('➜')} ${theme.tertiary('Local:')} ${theme.underscore(`http://localhost:${options.port}`)}`
+    )
     console.log()
 
     if (options.watch) {
-      console.log(theme.info(`   ${theme.muted('Watching')} ${paths.source} ${theme.muted('for changes...')}`))
+      console.log(theme.info(`   ${theme.tertiary('Watching')} ${paths.source} ${theme.tertiary('for changes...')}`))
       console.log()
     }
 
-    console.log(theme.muted('   Press Ctrl+C to stop'))
+    console.log(theme.tertiary('   Press Ctrl+C to stop'))
     console.log()
 
     // Resolve http-server binary
@@ -70,7 +72,7 @@ export default async function previewCommand(source, options, packageJson) {
           try {
             await buildCommand(source, options, packageJson)
             console.log(theme.success('✓ Rebuild complete'))
-            console.log(theme.muted('  Refresh browser to see changes'))
+            console.log(theme.tertiary('  Refresh browser to see changes'))
             console.log()
           } catch (error) {
             console.error(theme.danger(`✗ Rebuild failed: ${error.message}`))
@@ -84,7 +86,7 @@ export default async function previewCommand(source, options, packageJson) {
 
       const shutdown = () => {
         console.log()
-        console.log(theme.muted('■ Stopping server and watcher...'))
+        console.log(theme.tertiary('■ Stopping server and watcher...'))
         watcher.close()
         server.kill()
         process.exit(0)

@@ -2,8 +2,7 @@ import {describe, it} from 'vitest'
 import assert from 'assert'
 import {existsSync, readFileSync} from 'fs'
 import {join, dirname} from 'path'
-import {execSync} from 'child_process'
-import {isolate, createFixtures} from '../utils.js'
+import {isolate, createFixtures, x} from '../utils.js'
 
 describe('Configuration Hierarchy', () => {
   it('should merge multiple docfu.yml files', async () => {
@@ -18,7 +17,7 @@ describe('Configuration Hierarchy', () => {
         'guides/temp.md': '# Temp',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'inherit'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const config = readFileSync(join(root, 'config.yml'), 'utf-8')
       assert.ok(config.includes('Main Site'), 'Should have site config from root')
@@ -37,7 +36,7 @@ describe('Configuration Hierarchy', () => {
         'api/reference.md': '# API',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'inherit'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const config = readFileSync(join(root, 'config.yml'), 'utf-8')
       assert.ok(config.includes('name: Docs'), 'Should use root site config')
@@ -59,7 +58,7 @@ describe('Configuration Hierarchy', () => {
         'guides/notes.tmp.md': '# Temp Notes',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'inherit'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(!existsSync(join(workspace, 'src/content/docs/drafts')), 'Should exclude drafts directory')
       assert.ok(existsSync(join(workspace, 'src/content/docs/guides/guide.md')), 'Should include guide')
@@ -79,7 +78,7 @@ describe('Configuration Hierarchy', () => {
         'api/reference.md': '# API Reference\n\nContent',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'inherit'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const processed = readFileSync(join(workspace, 'src/content/docs/api/reference.md'), 'utf-8')
       assert.ok(processed.includes('sidebar:'), 'Should apply frontmatter defaults')
@@ -105,7 +104,7 @@ describe('Configuration Hierarchy', () => {
         'other.md': '# Other\n\nContent',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'inherit'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const index = readFileSync(join(workspace, 'src/content/docs/index.md'), 'utf-8')
       assert.ok(index.includes('Custom Home Title'), 'Should apply file-specific title')
@@ -129,7 +128,7 @@ describe('Configuration Hierarchy', () => {
       let exitCode = 0
       let stderr = ''
       try {
-        execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+        x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
       } catch (error) {
         exitCode = error.status
         stderr = error.stderr?.toString() || ''
@@ -165,7 +164,7 @@ author: Jane Doe
 Content here.`,
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'inherit'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const processed = readFileSync(join(workspace, 'src/content/docs/guide.md'), 'utf-8')
 

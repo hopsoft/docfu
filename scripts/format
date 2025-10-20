@@ -6,7 +6,7 @@ import {getPackageManagerCmd} from '../lib/package-manager.js'
 import theme from '../lib/theme.js'
 
 const __filename = dirname(import.meta.url)
-console.info(theme.lead(`➜ ${__filename}`))
+console.info(theme.emphasis(`➜ ${__filename}`))
 const cmd = getPackageManagerCmd('exec')
 exec(cmd, 'markdown-toc -i --maxdepth 2 README.md')
 exec(

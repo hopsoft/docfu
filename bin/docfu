@@ -21,13 +21,13 @@ program
   .usage('[options] <source>')
   .configureHelp({
     sortOptions: true,
-    styleArgumentDescription: theme.muted,
+    styleArgumentDescription: theme.tertiary,
     styleArgumentTerm: theme.secondary,
-    styleCommandTerm: theme.command,
-    styleOptionDescription: theme.muted,
+    styleCommandTerm: theme.vivid,
+    styleOptionDescription: theme.tertiary,
     styleOptionTerm: theme.secondary,
-    styleSubcommandDescription: theme.muted,
-    styleSubcommandTerm: theme.command,
+    styleSubcommandDescription: theme.tertiary,
+    styleSubcommandTerm: theme.vivid,
     styleTitle: theme.primary,
   })
   .configureOutput({
@@ -78,14 +78,14 @@ program.addHelpText(
   'after',
   `
 ${theme.primary('Examples:')}
-  ${theme.muted('$')} docfu ./docs
-  ${theme.muted('$')} docfu stage ./docs
-  ${theme.muted('$')} docfu preview ./my-docs --port 3000
-  ${theme.muted('$')} docfu build ./docs --sandbox /tmp/my-docs
+  ${theme.tertiary('$')} docfu ./docs
+  ${theme.tertiary('$')} docfu stage ./docs
+  ${theme.tertiary('$')} docfu preview ./my-docs --port 3000
+  ${theme.tertiary('$')} docfu build ./docs --sandbox /tmp/my-docs
 
 ${theme.primary('Environment Variables:')}
-  ${theme.key('DOCFU_SOURCE')}   ${theme.muted('Source markdown directory')}
-  ${theme.key('DOCFU_SANDBOX')}  ${theme.muted('Sandbox directory (default: .docfu)')}
+  ${theme.symbolic('DOCFU_SOURCE')}   ${theme.tertiary('Source markdown directory')}
+  ${theme.symbolic('DOCFU_SANDBOX')}  ${theme.tertiary('Sandbox directory (default: .docfu)')}
 `
 )
 

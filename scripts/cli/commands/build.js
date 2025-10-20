@@ -48,19 +48,19 @@ export default async function buildCommand(source, options, packageJson) {
   const paths = getResolvedPaths(source, options)
 
   console.info(theme.primary(`DocFu v${packageJson.version}`))
-  console.info(`${theme.muted('Source:')} ${theme.secondary(paths.source)}`)
-  console.info(`${theme.muted('Workspace:')} ${theme.secondary(paths.workspace)}`)
-  console.info(`${theme.muted('Build output:')} ${theme.secondary(paths.dist)}`)
+  console.info(`${theme.tertiary('Source:')} ${theme.secondary(paths.source)}`)
+  console.info(`${theme.tertiary('Workspace:')} ${theme.secondary(paths.workspace)}`)
+  console.info(`${theme.tertiary('Build output:')} ${theme.secondary(paths.dist)}`)
   console.info()
 
   // Dry run mode - show config and exit
   if (options.dryRun) {
     console.info(theme.success('✓ Configuration validated (dry-run mode)'))
     console.info()
-    console.info(theme.muted('Would process:'))
-    console.info(`  ${theme.secondary(paths.source)} ${theme.muted('→')} ${theme.secondary(paths.workspace)}`)
+    console.info(theme.tertiary('Would process:'))
+    console.info(`  ${theme.secondary(paths.source)} ${theme.tertiary('→')} ${theme.secondary(paths.workspace)}`)
     console.info()
-    console.info(theme.muted('Would create/clean:'))
+    console.info(theme.tertiary('Would create/clean:'))
     console.info(`  ${theme.secondary(paths.workspace)}`)
     console.info(`  ${theme.secondary(paths.dist)}`)
     return
@@ -116,7 +116,7 @@ export default async function buildCommand(source, options, packageJson) {
 
     console.info()
     console.info(theme.success('✓ Build complete'))
-    console.info(`${theme.muted('Output:')} ${theme.secondary(paths.dist)}`)
+    console.info(`${theme.tertiary('Output:')} ${theme.secondary(paths.dist)}`)
   } catch (error) {
     console.error(theme.danger(`✗ Build failed: ${error.message}`))
     process.exit(1)

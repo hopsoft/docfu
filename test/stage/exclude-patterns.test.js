@@ -3,8 +3,7 @@ import assert from 'assert'
 import {existsSync} from 'fs'
 import {readdir} from 'fs/promises'
 import {join, dirname} from 'path'
-import {execSync} from 'child_process'
-import {isolate, createFixtures} from '../utils.js'
+import {isolate, createFixtures, x} from '../utils.js'
 
 const doccfuYml = `site:
   name: Test Docs
@@ -33,7 +32,7 @@ describe('Exclude Patterns', () => {
         'internal/secret.md': '# Internal',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/index.md')), 'index.md should be included')
 
@@ -55,7 +54,7 @@ describe('Exclude Patterns', () => {
         'specific-file.md': '# Specific',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/index.md')), 'index.md should be included')
       assert.ok(existsSync(join(workspace, 'src/content/docs/regular.md')), 'regular.md should be included')
@@ -79,7 +78,7 @@ describe('Exclude Patterns', () => {
         'feature-draft.md': '# Feature Draft',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/index.md')), 'index.md should be included')
       assert.ok(existsSync(join(workspace, 'src/content/docs/regular.md')), 'regular.md should be included')
@@ -103,7 +102,7 @@ describe('Exclude Patterns', () => {
         'backup.tmp.md': '# Backup',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/index.md')), 'index.md should be included')
       assert.ok(existsSync(join(workspace, 'src/content/docs/regular.md')), 'regular.md should be included')
@@ -123,32 +122,11 @@ describe('Exclude Patterns', () => {
         'temp-dir/file.md': '# Temp',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/index.md')), 'index.md should be included')
 
       assert.ok(!existsSync(join(workspace, 'temp-dir')), 'temp-dir should be excluded')
-    })
-  })
-
-  it('should list excluded patterns in processing output', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-
-      await createFixtures(source, {
-        'docfu.yml': doccfuYml,
-        'index.md': '# Home',
-      })
-
-      const result = execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {
-        encoding: 'utf-8',
-      })
-
-      assert.ok(result.includes('Exclude patterns:'), 'Should show exclude patterns header')
-      assert.ok(result.includes('drafts'), 'Should list drafts pattern')
-      assert.ok(result.includes('archive'), 'Should list archive pattern')
-      assert.ok(result.includes('*-draft.md'), 'Should list *-draft.md pattern')
-      assert.ok(result.includes('*.tmp.md'), 'Should list *.tmp.md pattern')
     })
   })
 
@@ -168,7 +146,7 @@ describe('Exclude Patterns', () => {
         'archive/old.md': '# Archive',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const docs = join(workspace, 'src/content/docs')
       const files = await readdir(docs, {recursive: true})

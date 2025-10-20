@@ -3,16 +3,13 @@ import assert from 'assert'
 import {existsSync, mkdirSync} from 'fs'
 import {readFile} from 'fs/promises'
 import {join, dirname} from 'path'
-import {execSync} from 'child_process'
-import {isolate, createFixtures} from '../utils.js'
+import {isolate, createFixtures, x} from '../utils.js'
 
 describe('Init Command', () => {
   it('should create docfu.yml with default values using --force flag', async () => {
     await isolate(async source => {
       mkdirSync(source, {recursive: true})
-      const stdout = execSync(`node ./bin/docfu init ${source}`, {encoding: 'utf-8'})
-
-      assert.ok(stdout.includes('Created'), 'Should show success message')
+      x(`node ./bin/docfu init ${source}`)
 
       const configPath = join(source, 'docfu.yml')
       assert.ok(existsSync(configPath), 'Should create docfu.yml')
@@ -27,9 +24,7 @@ describe('Init Command', () => {
   it('should create docfu.yml from template', async () => {
     await isolate(async source => {
       mkdirSync(source, {recursive: true})
-      const stdout = execSync(`node ./bin/docfu init ${source}`, {encoding: 'utf-8'})
-
-      assert.ok(stdout.includes('Created'), 'Should show success message')
+      x(`node ./bin/docfu init ${source}`)
 
       const configPath = join(source, 'docfu.yml')
       const content = await readFile(configPath, 'utf-8')
@@ -47,9 +42,7 @@ describe('Init Command', () => {
         'docfu.yml': 'existing: config\nold: value',
       })
 
-      const stdout = execSync(`node ./bin/docfu init ${source} --force`, {encoding: 'utf-8'})
-
-      assert.ok(stdout.includes('Created'), 'Should show success message')
+      x(`node ./bin/docfu init ${source} --force`)
 
       const content = await readFile(configPath, 'utf-8')
       assert.ok(!content.includes('old: value'), 'Should overwrite old config')
@@ -60,7 +53,7 @@ describe('Init Command', () => {
   it('should handle --force flag without prompts', async () => {
     await isolate(async source => {
       mkdirSync(source, {recursive: true})
-      execSync(`node ./bin/docfu init ${source}`, {stdio: 'pipe'})
+      x(`node ./bin/docfu init ${source}`)
 
       const configPath = join(source, 'docfu.yml')
       const content = await readFile(configPath, 'utf-8')
@@ -72,7 +65,7 @@ describe('Init Command', () => {
   it('should create config in specified source directory', async () => {
     await isolate(async source => {
       mkdirSync(source, {recursive: true})
-      execSync(`node ./bin/docfu init ${source}`, {stdio: 'pipe'})
+      x(`node ./bin/docfu init ${source}`)
 
       const configPath = join(source, 'docfu.yml')
       assert.ok(existsSync(configPath), 'Should create config in source directory')

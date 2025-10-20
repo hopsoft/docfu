@@ -16,9 +16,9 @@ export default async function prepareCommand(source, options, packageJson) {
   const paths = getResolvedPaths(source, options)
 
   console.log(theme.primary(`DocFu v${packageJson.version}`))
-  console.log(`${theme.muted('Source:')} ${theme.secondary(paths.source)}`)
-  console.log(`${theme.muted('Root:')} ${theme.secondary(paths.root)}`)
-  console.log(`${theme.muted('Workspace:')} ${theme.secondary(paths.workspace)}`)
+  console.log(`${theme.tertiary('Source:')} ${theme.secondary(paths.source)}`)
+  console.log(`${theme.tertiary('Root:')} ${theme.secondary(paths.root)}`)
+  console.log(`${theme.tertiary('Workspace:')} ${theme.secondary(paths.workspace)}`)
   console.log()
 
   try {
@@ -29,7 +29,7 @@ export default async function prepareCommand(source, options, packageJson) {
 
     console.log()
     console.log(theme.success('✓ Documentation prepared successfully'))
-    console.log(`${theme.muted('Workspace:')} ${theme.secondary(paths.workspace)}`)
+    console.log(`${theme.tertiary('Workspace:')} ${theme.secondary(paths.workspace)}`)
   } catch (error) {
     console.error(theme.danger(`✗ Prepare failed: ${error.message}`))
     process.exit(1)

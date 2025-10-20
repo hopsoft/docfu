@@ -7,7 +7,7 @@ import {loadPackageJSON} from '../lib/package.js'
 import theme from '../lib/theme.js'
 
 const __filename = dirname(import.meta.url)
-console.info(theme.lead(`➜ ${__filename}`))
+console.info(theme.emphasis(`➜ ${__filename}`))
 
 exec(getPackageManagerCmd('pack'))
 const filename = `docfu-${loadPackageJSON()?.version}.tgz`
@@ -15,7 +15,7 @@ const filepath = join(dirname(import.meta.url), filename)
 const path = realpath(filepath)
 
 if (!path) {
-  console.error(theme.danger('⚠︎ NOT FOUND'), theme.muted(__filename))
+  console.error(theme.danger('⚠︎ NOT FOUND'), theme.tertiary(__filename))
   console.error('  ', theme.warning(path))
   exit(1)
 }

@@ -80,8 +80,8 @@ export function getResolvedPaths(source, options) {
 
   if (!sourceDir) {
     console.error(theme.danger('✗ Error: No source documentation directory specified'))
-    console.error(theme.muted('  Provide the path to your markdown documentation'))
-    console.error(theme.muted('  Example: docfu prepare ./my-docs'))
+    console.error(theme.tertiary('  Provide the path to your markdown documentation'))
+    console.error(theme.tertiary('  Example: docfu prepare ./my-docs'))
     process.exit(1)
   }
 

@@ -44,7 +44,7 @@ export default async function initCommand(source, options = {}, packageJson) {
       })
 
       if (!overwrite) {
-        console.log(theme.muted('Cancelled.'))
+        console.log(theme.tertiary('Cancelled.'))
         return
       }
     }
@@ -57,13 +57,13 @@ export default async function initCommand(source, options = {}, packageJson) {
     console.log()
     console.log(theme.success(`✓ Created ${configPath}`))
     console.log()
-    console.log(theme.muted('Next steps:'))
-    console.log(theme.muted(`  1. Edit ${configPath} to customize your site`))
-    console.log(theme.muted(`  2. Run: docfu build ${sourceDir}`))
+    console.log(theme.tertiary('Next steps:'))
+    console.log(theme.tertiary(`  1. Edit ${configPath} to customize your site`))
+    console.log(theme.tertiary(`  2. Run: docfu build ${sourceDir}`))
   } catch (error) {
     if (error.name === 'ExitPromptError') {
       console.log()
-      console.log(theme.muted('Cancelled.'))
+      console.log(theme.tertiary('Cancelled.'))
       return
     }
     console.error(theme.danger(`✗ Init failed: ${error.message}`))

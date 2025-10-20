@@ -2,8 +2,7 @@ import {describe, it} from 'vitest'
 import assert from 'assert'
 import {existsSync, readFileSync} from 'fs'
 import {join, dirname} from 'path'
-import {execSync} from 'child_process'
-import {isolate, createFixtures} from '../utils.js'
+import {isolate, createFixtures, x} from '../utils.js'
 
 const docfuYml = 'site:\n  name: Test Docs\n  url: https://test.example.com'
 
@@ -18,7 +17,7 @@ describe('Manifest Generation', () => {
         'guide.md': '---\ntitle: Guide\n---\n\n# Guide',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const manifestPath = join(root, 'manifest.json')
       assert.ok(existsSync(manifestPath), 'manifest.json should exist')
@@ -46,7 +45,7 @@ unlisted:
         'index.md': '# Home',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf-8'))
 
@@ -70,7 +69,7 @@ unlisted:
         'guides/quickstart.md': '---\ntitle: Quick Start\n---\n\n# Getting Started',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf-8'))
 
@@ -103,7 +102,7 @@ unlisted:
         'guides/Getting-Started.md': '# Guide',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf-8'))
 
@@ -131,7 +130,7 @@ unlisted:
         'components/MyButton.jsx': 'export default function MyButton() { return <button>Click</button> }',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf-8'))
 
@@ -156,7 +155,7 @@ unlisted:
         'assets/custom.css': 'body { color: red; }',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf-8'))
 
@@ -178,7 +177,7 @@ unlisted:
         'index.md': '# Home',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf-8'))
 
@@ -203,7 +202,7 @@ unlisted:
         'with-markdoc.md': '# Page\n\n{% aside type="note" %}Note{% /aside %}',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf-8'))
 

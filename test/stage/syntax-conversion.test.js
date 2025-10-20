@@ -3,8 +3,7 @@ import assert from 'assert'
 import {existsSync} from 'fs'
 import {readFile} from 'fs/promises'
 import {join, dirname} from 'path'
-import {execSync} from 'child_process'
-import {isolate, createFixtures} from '../utils.js'
+import {isolate, createFixtures, x} from '../utils.js'
 
 const docfuYml = 'site:\n  name: Test Docs\n  url: https://test.example.com'
 
@@ -28,7 +27,7 @@ describe('Syntax Conversion', () => {
 > This is a warning.`,
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/github-alerts.md')), 'Should stay as .md')
 
@@ -57,7 +56,7 @@ describe('Syntax Conversion', () => {
 Content here.`,
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/alerts-with-badges.mdoc')), 'Should become .mdoc')
 
@@ -84,7 +83,7 @@ Content here.`,
 Content with inline :badge[text] preserved.`,
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/heading-badges.mdoc')), 'Should become .mdoc')
 

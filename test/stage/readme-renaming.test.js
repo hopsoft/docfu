@@ -3,8 +3,7 @@ import assert from 'assert'
 import {existsSync} from 'fs'
 import {readFile} from 'fs/promises'
 import {join, dirname} from 'path'
-import {execSync} from 'child_process'
-import {isolate, createFixtures} from '../utils.js'
+import {isolate, createFixtures, x} from '../utils.js'
 
 const docfuYml = 'site:\n  name: Test'
 
@@ -19,7 +18,7 @@ describe('README Renaming', () => {
         'README.md': '---\ntitle: Welcome\n---\n\n# Welcome\n\nThis is the README.',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/index.md')), 'README.md should become index.md')
       assert.ok(!existsSync(join(workspace, 'src/content/docs/README.md')), 'README.md should not exist')
@@ -40,7 +39,7 @@ describe('README Renaming', () => {
         'index.md': '---\ntitle: Home\n---\n\n# Home\n\nMain page.',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/index.md')), 'index.md should exist')
       assert.ok(existsSync(join(workspace, 'src/content/docs/README.md')), 'README.md should also exist')
@@ -63,7 +62,7 @@ describe('README Renaming', () => {
         'guides/Readme.md': '---\ntitle: Mixed Case\n---\n\n# Mixed case readme',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/index.md')), 'readme.md should become index.md')
       assert.ok(existsSync(join(workspace, 'src/content/docs/guides/index.md')), 'Readme.md should become index.md')
@@ -83,7 +82,7 @@ describe('README Renaming', () => {
           '---\ntitle: Home\n---\nimport { Card } from "@astrojs/starlight/components"\n\n# Home\n\n<Card title="Test" />\n',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/index.mdx')), 'Should become index.mdx due to JSX')
       assert.ok(!existsSync(join(workspace, 'src/content/docs/README.md')), 'README.md should not exist')
@@ -104,7 +103,7 @@ describe('README Link Transformation', () => {
         'guides/README.md': '---\ntitle: Guide\n---\n\n# Guide',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const content = await readFile(join(workspace, 'src/content/docs/index.md'), 'utf-8')
       assert.ok(content.includes('[Getting Started](guides/index.md)'), 'Should transform README.md to index.md')
@@ -132,7 +131,7 @@ Links:
         'docs/Readme.md': '# Guide 3',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const content = await readFile(join(workspace, 'src/content/docs/index.md'), 'utf-8')
       assert.ok(content.includes('guides/index.md'), 'Should transform readme.md')
@@ -164,7 +163,7 @@ Inline \`README.md\` reference.`,
         'README.md': '# Home',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const content = await readFile(join(workspace, 'src/content/docs/index.md'), 'utf-8')
       assert.ok(content.includes('[README](index.md)'), 'Should transform markdown link')
@@ -193,7 +192,7 @@ Links:
         'docs/README.mdoc': '# MDOC',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const content = await readFile(join(workspace, 'src/content/docs/index.md'), 'utf-8')
       assert.ok(content.includes('guides/index.md'), 'Should transform README.md')
@@ -221,7 +220,7 @@ title: Getting Started
         'guides/README.md': '# Guide',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const content = await readFile(join(workspace, 'src/content/docs/guides/getting-started.md'), 'utf-8')
       assert.ok(content.includes('[Home](/)'), 'Should transform ../README.md to root')

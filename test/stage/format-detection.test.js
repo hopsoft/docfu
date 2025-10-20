@@ -3,8 +3,7 @@ import assert from 'assert'
 import {existsSync} from 'fs'
 import {readFile} from 'fs/promises'
 import {join, dirname} from 'path'
-import {execSync} from 'child_process'
-import {isolate, createFixtures} from '../utils.js'
+import {isolate, createFixtures, x} from '../utils.js'
 
 const docfuYml = 'site:\n  name: Test Docs\n  url: https://test.example.com'
 
@@ -33,7 +32,7 @@ const test = 'hello'
 No JSX components, no Markdoc tags.`,
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/plain-markdown.md')), 'Plain markdown should stay as .md')
       assert.ok(!existsSync(join(workspace, 'src/content/docs/plain-markdown.mdx')), 'Should not become .mdx')
@@ -66,7 +65,7 @@ This card should trigger conversion to .mdx
 Content continues here.`,
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/with-jsx-components.mdx')), 'Should become .mdx')
       assert.ok(
@@ -103,7 +102,7 @@ This is a note aside.
 More content here.`,
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/with-markdoc-tags.mdoc')), 'Should become .mdoc')
       assert.ok(!existsSync(join(workspace, 'src/content/docs/with-markdoc-tags.md')), 'Original .md should not exist')
@@ -134,7 +133,7 @@ More content with inline :badge[text] that stays as-is.
 Regular content.`,
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/with-heading-badges.mdoc')), 'Should become .mdoc')
 
@@ -168,7 +167,7 @@ Plain markdown with only GitHub alerts should stay as .md.
 Regular content.`,
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(
         existsSync(join(workspace, 'src/content/docs/with-github-alerts.md')),
@@ -200,7 +199,7 @@ This file has both badges AND alerts, should become .mdoc.
 Content here.`,
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/badges-and-alerts.mdoc')), 'Should become .mdoc')
 
@@ -236,7 +235,7 @@ This is a tip.
 All components should be auto-imported alphabetically.`,
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/multiple-components.mdx')), 'Should become .mdx')
 
@@ -275,7 +274,7 @@ This file is already .mdx and should be preserved.
 Existing imports should not be modified.`,
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/existing.mdx')), 'Should preserve .mdx extension')
 
@@ -309,7 +308,7 @@ Existing markdoc content.
 No changes needed.`,
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/existing.mdoc')), 'Should preserve .mdoc extension')
 

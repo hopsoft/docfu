@@ -2,8 +2,7 @@ import {describe, it} from 'vitest'
 import assert from 'assert'
 import {readFile} from 'fs/promises'
 import {join, dirname} from 'path'
-import {execSync} from 'child_process'
-import {isolate, createFixtures} from '../utils.js'
+import {isolate, createFixtures, x} from '../utils.js'
 
 const docfuYml = 'site:\n  name: Test Docs\n  url: https://example.com'
 
@@ -19,7 +18,7 @@ describe('Relative Links', () => {
         'getting-started.md': '# Getting Started\n\nBack to [Home](./index.md)',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const indexContent = await readFile(join(workspace, 'src/content/docs/index.md'), 'utf-8')
       assert.ok(
@@ -44,7 +43,7 @@ describe('Relative Links', () => {
         'terms/503B.md': '# 503B\n\n## Definition',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const content = await readFile(join(workspace, 'src/content/docs/glossary.md'), 'utf-8')
       assert.ok(content.includes('[Term 503B](/terms/503b/#definition)'), 'Should lowercase path and preserve fragment')
@@ -64,7 +63,7 @@ describe('Relative Links', () => {
         'api/reference.md': '# Reference',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const guidesContent = await readFile(join(workspace, 'src/content/docs/guides/index.md'), 'utf-8')
       assert.ok(guidesContent.includes('[API](/api/reference/)'), 'Should transform parent directory link')
@@ -97,7 +96,7 @@ Link to [other](./other.md)`,
         'other.md': '# Other',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const content = await readFile(join(workspace, 'src/content/docs/page.md'), 'utf-8')
 
@@ -131,7 +130,7 @@ See [docs](./docs/guide.md)`,
         'docs/guide.md': '# Guide',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const content = await readFile(join(workspace, 'src/content/docs/page.mdx'), 'utf-8')
       assert.ok(content.includes('[docs](/docs/guide/)'), 'Should transform relative links in MDX')
@@ -157,7 +156,7 @@ Link to [reference](./api/reference.md)`,
         'api/reference.md': '# Reference',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const content = await readFile(join(workspace, 'src/content/docs/page.mdoc'), 'utf-8')
       assert.ok(content.includes('[guide](/guide/)'), 'Should transform relative links in Markdoc')
@@ -182,7 +181,7 @@ Link to [reference](./api/reference.md)`,
         'other.md': '# Other',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const content = await readFile(join(workspace, 'src/content/docs/page.md'), 'utf-8')
       assert.ok(content.includes('[Absolute](/docs/api/)'), 'Should preserve absolute link')
@@ -209,7 +208,7 @@ Link to [reference](./api/reference.md)`,
         'doc.md': '{% aside %}Note{% /aside %}',
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       const content = await readFile(join(workspace, 'src/content/docs/index.md'), 'utf-8')
       assert.ok(content.includes('[Markdown](/page/)'), 'Should strip .md extension')

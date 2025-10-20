@@ -3,8 +3,7 @@ import assert from 'assert'
 import {existsSync} from 'fs'
 import {readFile} from 'fs/promises'
 import {join, dirname} from 'path'
-import {execSync} from 'child_process'
-import {isolate, createFixtures} from '../utils.js'
+import {isolate, createFixtures, x} from '../utils.js'
 
 const docfuYml = 'site:\n  name: Test Docs\n  url: https://test.example.com'
 
@@ -28,7 +27,7 @@ Content continues here.`,
 It contains plain markdown content.`,
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(
         existsSync(join(workspace, 'src/content/docs/with-partial.mdoc')),
@@ -63,7 +62,7 @@ More content.`,
 This should trigger conversion to .mdoc format.`,
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/with-mdoc-partial.mdoc')), 'Main file should be .mdoc')
 
@@ -109,7 +108,7 @@ It contains plain markdown content.`,
 This should trigger conversion to .mdoc format.`,
       })
 
-      execSync(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`, {stdio: 'pipe'})
+      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
 
       assert.ok(existsSync(join(workspace, 'src/content/docs/_partials')), 'Partials directory should exist')
       assert.ok(existsSync(join(workspace, 'src/content/docs/_partials/note.md')), 'Plain partial should exist')
