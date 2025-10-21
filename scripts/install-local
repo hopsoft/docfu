@@ -1,23 +1,11 @@
 #!/usr/bin/env node
 
-import {dirname, realpath} from '../lib/file-system.js'
-import {exec} from '../lib/process.js'
-import {getPackageManagerCmd} from '../lib/package-manager.js'
-import {loadPackageJSON} from '../lib/package.js'
-import theme from '../lib/theme.js'
+import {dirname, join, realpath} from '../lib/file-system.js'
+import {system} from '../lib/system.js'
+import {loadPackageJSON} from '../lib/packages.js'
+import pkgmgr from '../lib/package-manager.js'
 
-const __filename = dirname(import.meta.url)
-console.info(theme.emphasis(`➜ ${__filename}`))
-
-exec(getPackageManagerCmd('pack'))
+system(pkgmgr.getCommand('pack'))
 const filename = `docfu-${loadPackageJSON()?.version}.tgz`
-const filepath = join(dirname(import.meta.url), filename)
-const path = realpath(filepath)
-
-if (!path) {
-  console.error(theme.danger('⚠︎ NOT FOUND'), theme.tertiary(__filename))
-  console.error('  ', theme.warning(path))
-  exit(1)
-}
-
-exec(getPackageManagerCmd('install', path))
+const filepath = realpath(import.meta.url, filename)
+system(pkgmgr.getCommand('install'), filepath)

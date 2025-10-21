@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import {Command} from 'commander'
-import env from '../lib/env.js'
+import base from '../lib/base.js'
 import theme from '../lib/theme.js'
 
 // commands
@@ -9,15 +9,12 @@ import init from '../lib/cli/init.js'
 import stage from '../lib/cli/stage.js'
 import build from '../lib/cli/build.js'
 
-// Initialize environment
-env.init(import.meta.url)
-
 const program = new Command()
 
 program
   .name('docfu')
   .description('Generate production-ready documentation websites from markdown')
-  .version(env.package.version, '-v, --version', 'output version number')
+  .version(base.package.version, '-v, --version', 'output version number')
   .usage('[options] <source>')
   .configureHelp({
     sortOptions: true,

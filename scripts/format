@@ -1,16 +1,12 @@
 #!/usr/bin/env node
 
-import {dirname} from '../lib/file-system.js'
-import {exec} from '../lib/process.js'
-import {getPackageManagerCmd} from '../lib/package-manager.js'
-import theme from '../lib/theme.js'
+import {system} from '../lib/system.js'
+import pkgmgr from '../lib/package-manager.js'
 
-const __filename = dirname(import.meta.url)
-console.info(theme.emphasis(`➜ ${__filename}`))
-const cmd = getPackageManagerCmd('exec')
-exec(cmd, 'markdown-toc -i --maxdepth 2 README.md')
-exec(
-  cmd,
+const exec = pkgmgr.getCommand('exec')
+system(exec, 'markdown-toc -i --maxdepth 2 README.md')
+system(
+  exec,
   'prettier',
   '--log-level silent',
   '--write',

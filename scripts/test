@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
 import {Command} from 'commander'
-import {execSync} from 'child_process'
+import {system} from '../lib/system.js'
+import pkgmgr from '../lib/package-manager.js'
 
-// Parse CLI arguments
 const program = new Command()
+
 program
   .name('test')
   .description('Run docfu test suite with package manager support')
@@ -25,11 +26,6 @@ Examples:
 const pm = program.opts().pm
 const path = program.args[0] || ''
 
-const commands = {
-  bun: `bunx vitest run ${path}`,
-  yarn: `yarn dlx vitest run ${path}`,
-  pnpm: `pnpmx vitest run ${path}`,
-  npm: `npx vitest run --disableConsoleIntercept --reporter=dot ${path}`,
-}
-
-execSync(commands[pm] || commands.npm, {stdio: 'inherit'})
+system(pkgmgr.getCommand('test', pm), path, {
+  env: {...process.env, DOCFU_PM: pm},
+})
