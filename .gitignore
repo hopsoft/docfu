@@ -78,9 +78,9 @@ coverage/
 .npmrc
 .temp/
 .test*
-.tmp/
+.tmp
 .yarn/
 .yarnrc.yml
 bunfig.toml
 debug.log*
-test/temp*
+tmp/

@@ -26,7 +26,7 @@ export default async function previewCommand(source, options, packageJson) {
     console.log(theme.primary(`Starting server on port ${options.port}...`))
     console.log()
     console.log(
-      `   ${theme.success('➜')} ${theme.tertiary('Local:')} ${theme.underscore(`http://localhost:${options.port}`)}`
+      `   ${theme.success('➜')} ${theme.tertiary('Local:')} ${theme.underline(`http://localhost:${options.port}`)}`
     )
     console.log()
 

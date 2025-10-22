@@ -1,19 +1,14 @@
 import {describe, it} from 'vitest'
 import assert from 'assert'
-import {existsSync} from 'fs'
-import {readFile} from 'fs/promises'
-import {join, dirname} from 'path'
-import {isolate, createFixtures, x} from '../utils.js'
+import {join, read, realpath} from '../../lib/file-system.js'
+import {createFixtures, spawn, quarantine} from '../utils.js'
 
 const docfuYml = 'site:\n  name: Test Docs\n  url: https://test.example.com'
 
 describe('Syntax Conversion', () => {
-  it('should preserve GitHub alerts in plain markdown', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-      const workspace = join(root, 'workspace')
-
-      await createFixtures(source, {
+  it('should preserve GitHub alerts in plain markdown', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'github-alerts.md': `# GitHub Alerts Only
 
@@ -27,11 +22,11 @@ describe('Syntax Conversion', () => {
 > This is a warning.`,
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
 
-      assert.ok(existsSync(join(workspace, 'src/content/docs/github-alerts.md')), 'Should stay as .md')
+      assert.ok(realpath(testdir, '.docfu', 'workspace', 'src/content/docs/github-alerts.md'), 'Should stay as .md')
 
-      const content = await readFile(join(workspace, 'src/content/docs/github-alerts.md'), 'utf-8')
+      const content = read(join(testdir, '.docfu', 'workspace', 'src/content/docs/github-alerts.md'))
       assert.ok(content.includes('> [!NOTE]'), 'Should preserve GitHub alert syntax')
       assert.ok(content.includes('> [!TIP]'), 'Should preserve TIP alert')
       assert.ok(content.includes('> [!WARNING]'), 'Should preserve WARNING alert')
@@ -39,12 +34,9 @@ describe('Syntax Conversion', () => {
     })
   })
 
-  it('should convert GitHub alerts to markdoc in .mdoc files', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-      const workspace = join(root, 'workspace')
-
-      await createFixtures(source, {
+  it('should convert GitHub alerts to markdoc in .mdoc files', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'alerts-with-badges.md': `# Alerts with Badges :badge[v1.0]
 
@@ -56,23 +48,23 @@ describe('Syntax Conversion', () => {
 Content here.`,
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
 
-      assert.ok(existsSync(join(workspace, 'src/content/docs/alerts-with-badges.mdoc')), 'Should become .mdoc')
+      assert.ok(
+        realpath(testdir, '.docfu', 'workspace', 'src/content/docs/alerts-with-badges.mdoc'),
+        'Should become .mdoc'
+      )
 
-      const content = await readFile(join(workspace, 'src/content/docs/alerts-with-badges.mdoc'), 'utf-8')
+      const content = read(join(testdir, '.docfu', 'workspace', 'src/content/docs/alerts-with-badges.mdoc'))
       assert.ok(content.includes('{% aside type="note" %}'), 'Should convert GitHub alerts to markdoc asides')
       assert.ok(content.includes('Combined with badges'), 'Should preserve alert content')
       assert.ok(!content.includes('> [!NOTE]'), 'Should not have GitHub alert syntax')
     })
   })
 
-  it('should convert heading badges to markdoc tags', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-      const workspace = join(root, 'workspace')
-
-      await createFixtures(source, {
+  it('should convert heading badges to markdoc tags', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'heading-badges.md': `# Title :badge[New]
 
@@ -83,11 +75,11 @@ Content here.`,
 Content with inline :badge[text] preserved.`,
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
 
-      assert.ok(existsSync(join(workspace, 'src/content/docs/heading-badges.mdoc')), 'Should become .mdoc')
+      assert.ok(realpath(testdir, '.docfu', 'workspace', 'src/content/docs/heading-badges.mdoc'), 'Should become .mdoc')
 
-      const content = await readFile(join(workspace, 'src/content/docs/heading-badges.mdoc'), 'utf-8')
+      const content = read(join(testdir, '.docfu', 'workspace', 'src/content/docs/heading-badges.mdoc'))
       assert.ok(content.includes('{% badge'), 'Should have markdoc badge tags')
       assert.ok(content.includes(':badge[text]'), 'Should preserve inline badge syntax')
     })

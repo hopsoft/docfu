@@ -8,7 +8,7 @@ describe('Lockfile Generation', () => {
   it('should generate package.json and lockfile without installing node_modules', ({task}) => {
     quarantine(task, testdir => {
       createFixtures(testdir, {'index.md': '# Home'})
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
 
       assert.ok(realpath(testdir, '.docfu', 'workspace', 'package.json'), 'Should create package.json in workspace')
       assert.ok(realpath(testdir, '.docfu', 'workspace', pkgmgr.lockfile), 'Should create lockfile in workspace')

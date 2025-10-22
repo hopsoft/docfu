@@ -1,15 +1,12 @@
 import {describe, it} from 'vitest'
 import assert from 'assert'
-import {existsSync, readFileSync} from 'fs'
-import {join, dirname} from 'path'
-import {isolate, createFixtures, x} from '../utils.js'
+import {join, read, realpath} from '../../lib/file-system.js'
+import {createFixtures, spawn, quarantine} from '../utils.js'
 
 describe('Configuration Hierarchy', () => {
-  it('should merge multiple docfu.yml files', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-
-      await createFixtures(source, {
+  it('should merge multiple docfu.yml files', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': 'site:\n  name: Main Site\n  url: https://example.com\nexclude:\n  - drafts',
         'index.md': '# Home',
         'guides/docfu.yml': 'exclude:\n  - temp.md',
@@ -17,39 +14,34 @@ describe('Configuration Hierarchy', () => {
         'guides/temp.md': '# Temp',
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
 
-      const config = readFileSync(join(root, 'config.yml'), 'utf-8')
+      const config = read(join(testdir, '.docfu', 'config.yml'))
       assert.ok(config.includes('Main Site'), 'Should have site config from root')
       assert.ok(config.includes('drafts') || config.includes('temp.md'), 'Should merge exclude patterns')
     })
   })
 
-  it('should inherit site config from root only', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-
-      await createFixtures(source, {
+  it('should inherit site config from root only', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': 'site:\n  name: Docs\n  url: https://docs.com',
         'index.md': '# Home',
         'api/docfu.yml': 'site:\n  name: API Docs\n  url: https://api.com',
         'api/reference.md': '# API',
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
 
-      const config = readFileSync(join(root, 'config.yml'), 'utf-8')
+      const config = read(join(testdir, '.docfu', 'config.yml'))
       assert.ok(config.includes('name: Docs'), 'Should use root site config')
       assert.ok(!config.includes('API Docs'), 'Should not use subdirectory site config')
     })
   })
 
-  it('should handle exclude patterns at different levels', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-      const workspace = join(root, 'workspace')
-
-      await createFixtures(source, {
+  it('should handle exclude patterns at different levels', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': 'site:\n  name: Test\n  url: https://test.com\nexclude:\n  - drafts',
         'index.md': '# Home',
         'drafts/draft.md': '# Draft',
@@ -58,40 +50,45 @@ describe('Configuration Hierarchy', () => {
         'guides/notes.tmp.md': '# Temp Notes',
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
 
-      assert.ok(!existsSync(join(workspace, 'src/content/docs/drafts')), 'Should exclude drafts directory')
-      assert.ok(existsSync(join(workspace, 'src/content/docs/guides/guide.md')), 'Should include guide')
-      assert.ok(!existsSync(join(workspace, 'src/content/docs/guides/notes.tmp.md')), 'Should exclude .tmp.md files')
+      assert.strictEqual(
+        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'drafts'),
+        undefined,
+        'Should exclude drafts directory'
+      )
+      assert.ok(
+        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'guides', 'guide.md'),
+        'Should include guide'
+      )
+      assert.strictEqual(
+        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'guides', 'notes.tmp.md'),
+        undefined,
+        'Should exclude .tmp.md files'
+      )
     })
   })
 
-  it('should support frontmatter defaults in config', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-      const workspace = join(root, 'workspace')
-
-      await createFixtures(source, {
+  it('should support frontmatter defaults in config', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
         'index.md': '# Home',
         'api/docfu.yml': 'frontmatter:\n  sidebar:\n    badge:\n      text: API\n      variant: note',
         'api/reference.md': '# API Reference\n\nContent',
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
 
-      const processed = readFileSync(join(workspace, 'src/content/docs/api/reference.md'), 'utf-8')
+      const processed = read(join(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'api', 'reference.md'))
       assert.ok(processed.includes('sidebar:'), 'Should apply frontmatter defaults')
       assert.ok(processed.includes('badge:'), 'Should include badge configuration')
     })
   })
 
-  it('should handle file-specific config in docfu.yml', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-      const workspace = join(root, 'workspace')
-
-      await createFixtures(source, {
+  it('should handle file-specific config in docfu.yml', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': `site:
   name: Test
   url: https://test.com
@@ -104,23 +101,20 @@ describe('Configuration Hierarchy', () => {
         'other.md': '# Other\n\nContent',
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
 
-      const index = readFileSync(join(workspace, 'src/content/docs/index.md'), 'utf-8')
+      const index = read(join(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'index.md'))
       assert.ok(index.includes('Custom Home Title'), 'Should apply file-specific title')
       assert.ok(index.includes('Custom description'), 'Should apply file-specific description')
 
-      const other = readFileSync(join(workspace, 'src/content/docs/other.md'), 'utf-8')
+      const other = read(join(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'other.md'))
       assert.ok(other.includes('title: Other'), 'Other file should use default title from H1')
     })
   })
 
-  it('should handle missing site config gracefully', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-      const workspace = join(root, 'workspace')
-
-      await createFixtures(source, {
+  it('should handle missing site config gracefully', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': 'exclude:\n  - drafts',
         'index.md': '# Home',
       })
@@ -128,7 +122,7 @@ describe('Configuration Hierarchy', () => {
       let exitCode = 0
       let stderr = ''
       try {
-        x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+        spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
       } catch (error) {
         exitCode = error.status
         stderr = error.stderr?.toString() || ''
@@ -138,19 +132,16 @@ describe('Configuration Hierarchy', () => {
         assert.ok(stderr.includes('site') || stderr.includes('required'), 'Should mention missing site config')
       } else {
         assert.ok(
-          existsSync(join(workspace, 'src/content/docs/index.md')),
+          realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'index.md'),
           'Should process files even without full config'
         )
       }
     })
   })
 
-  it('should preserve user-defined frontmatter without overwriting', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-      const workspace = join(root, 'workspace')
-
-      await createFixtures(source, {
+  it('should preserve user-defined frontmatter without overwriting', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
         'guide.md': `---
 title: User Defined Title
@@ -164,9 +155,9 @@ author: Jane Doe
 Content here.`,
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
 
-      const processed = readFileSync(join(workspace, 'src/content/docs/guide.md'), 'utf-8')
+      const processed = read(join(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'guide.md'))
 
       // Verify user-defined frontmatter is preserved
       assert.ok(processed.includes('title: User Defined Title'), 'Should preserve user-defined title')

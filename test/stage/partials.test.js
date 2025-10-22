@@ -1,19 +1,14 @@
 import {describe, it} from 'vitest'
 import assert from 'assert'
-import {existsSync} from 'fs'
-import {readFile} from 'fs/promises'
-import {join, dirname} from 'path'
-import {isolate, createFixtures, x} from '../utils.js'
+import {join, read, realpath} from '../../lib/file-system.js'
+import {createFixtures, spawn, quarantine} from '../utils.js'
 
 const docfuYml = 'site:\n  name: Test Docs\n  url: https://test.example.com'
 
 describe('Markdoc Partials', () => {
-  it('should convert files with partial tags to .mdoc', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-      const workspace = join(root, 'workspace')
-
-      await createFixtures(source, {
+  it('should convert files with partial tags to .mdoc', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'with-partial.md': `# Document with Partial
 
@@ -27,26 +22,27 @@ Content continues here.`,
 It contains plain markdown content.`,
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
 
       assert.ok(
-        existsSync(join(workspace, 'src/content/docs/with-partial.mdoc')),
+        realpath(testdir, '.docfu', 'workspace', 'src/content/docs/with-partial.mdoc'),
         'File with partial should become .mdoc'
       )
-      assert.ok(!existsSync(join(workspace, 'src/content/docs/with-partial.md')), 'Original .md should not exist')
+      assert.strictEqual(
+        realpath(testdir, '.docfu', 'workspace', 'src/content/docs/with-partial.md'),
+        undefined,
+        'Original .md should not exist'
+      )
 
-      const content = await readFile(join(workspace, 'src/content/docs/with-partial.mdoc'), 'utf-8')
+      const content = read(join(testdir, '.docfu', 'workspace', 'src/content/docs/with-partial.mdoc'))
       assert.ok(content.includes('{% partial'), 'Should preserve partial tags')
       assert.ok(content.includes('file="_partials/note"'), 'Should preserve extensionless partial reference')
     })
   })
 
-  it('should convert partials with markdoc syntax and update references', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-      const workspace = join(root, 'workspace')
-
-      await createFixtures(source, {
+  it('should convert partials with markdoc syntax and update references', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'with-mdoc-partial.md': `# Document with Markdoc Partial
 
@@ -62,34 +58,35 @@ More content.`,
 This should trigger conversion to .mdoc format.`,
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
-
-      assert.ok(existsSync(join(workspace, 'src/content/docs/with-mdoc-partial.mdoc')), 'Main file should be .mdoc')
+      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
 
       assert.ok(
-        existsSync(join(workspace, 'src/content/docs/_partials/markdoc-partial.mdoc')),
+        realpath(testdir, '.docfu', 'workspace', 'src/content/docs/with-mdoc-partial.mdoc'),
+        'Main file should be .mdoc'
+      )
+
+      assert.ok(
+        realpath(testdir, '.docfu', 'workspace', 'src/content/docs/_partials/markdoc-partial.mdoc'),
         'Partial with markdoc should be .mdoc'
       )
-      assert.ok(
-        !existsSync(join(workspace, 'src/content/docs/_partials/markdoc-partial.md')),
+      assert.strictEqual(
+        realpath(testdir, '.docfu', 'workspace', 'src/content/docs/_partials/markdoc-partial.md'),
+        undefined,
         'Original partial .md should not exist'
       )
 
-      const main = await readFile(join(workspace, 'src/content/docs/with-mdoc-partial.mdoc'), 'utf-8')
+      const main = read(join(testdir, '.docfu', 'workspace', 'src/content/docs/with-mdoc-partial.mdoc'))
       assert.ok(main.includes('file="_partials/markdoc-partial.mdoc"'), 'Reference should be updated to .mdoc')
       assert.ok(!main.includes('file="_partials/markdoc-partial.md"'), 'Should not contain old .md reference')
 
-      const partial = await readFile(join(workspace, 'src/content/docs/_partials/markdoc-partial.mdoc'), 'utf-8')
+      const partial = read(join(testdir, '.docfu', 'workspace', 'src/content/docs/_partials/markdoc-partial.mdoc'))
       assert.ok(partial.includes('{% badge'), 'Partial should contain markdoc syntax')
     })
   })
 
-  it('should preserve partials directory structure', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-      const workspace = join(root, 'workspace')
-
-      await createFixtures(source, {
+  it('should preserve partials directory structure', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'with-partial.md': `# Document with Partial
 
@@ -108,12 +105,18 @@ It contains plain markdown content.`,
 This should trigger conversion to .mdoc format.`,
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
 
-      assert.ok(existsSync(join(workspace, 'src/content/docs/_partials')), 'Partials directory should exist')
-      assert.ok(existsSync(join(workspace, 'src/content/docs/_partials/note.md')), 'Plain partial should exist')
       assert.ok(
-        existsSync(join(workspace, 'src/content/docs/_partials/markdoc-partial.mdoc')),
+        realpath(testdir, '.docfu', 'workspace', 'src/content/docs/_partials'),
+        'Partials directory should exist'
+      )
+      assert.ok(
+        realpath(testdir, '.docfu', 'workspace', 'src/content/docs/_partials/note.md'),
+        'Plain partial should exist'
+      )
+      assert.ok(
+        realpath(testdir, '.docfu', 'workspace', 'src/content/docs/_partials/markdoc-partial.mdoc'),
         'Markdoc partial should exist'
       )
     })

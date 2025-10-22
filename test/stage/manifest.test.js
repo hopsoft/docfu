@@ -1,28 +1,25 @@
 import {describe, it} from 'vitest'
 import assert from 'assert'
-import {existsSync, readFileSync} from 'fs'
-import {join, dirname} from 'path'
-import {isolate, createFixtures, x} from '../utils.js'
+import {join, read, realpath} from '../../lib/file-system.js'
+import {createFixtures, spawn, quarantine} from '../utils.js'
 
 const docfuYml = 'site:\n  name: Test Docs\n  url: https://test.example.com'
 
 describe('Manifest Generation', () => {
-  it('should create manifest.json with correct structure', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-
-      await createFixtures(source, {
+  it('should create manifest.json with correct structure', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'index.md': '---\ntitle: Home\n---\n\n# Welcome',
         'guide.md': '---\ntitle: Guide\n---\n\n# Guide',
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
 
-      const manifestPath = join(root, 'manifest.json')
-      assert.ok(existsSync(manifestPath), 'manifest.json should exist')
+      const manifestPath = realpath(testdir, '.docfu', 'manifest.json')
+      assert.ok(manifestPath, 'manifest.json should exist')
 
-      const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+      const manifest = JSON.parse(read(manifestPath))
 
       // Verify top-level structure
       assert.ok(manifest.config, 'Should have config')
@@ -30,11 +27,9 @@ describe('Manifest Generation', () => {
     })
   })
 
-  it('should include correct config in manifest', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-
-      await createFixtures(source, {
+  it('should include correct config in manifest', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': `site:
   name: My Docs
   url: https://docs.example.com
@@ -45,9 +40,9 @@ unlisted:
         'index.md': '# Home',
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
 
-      const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf-8'))
+      const manifest = JSON.parse(read(join(testdir, '.docfu', 'manifest.json')))
 
       assert.strictEqual(manifest.config.site.name, 'My Docs', 'Should have correct site name')
       assert.strictEqual(manifest.config.site.url, 'https://docs.example.com', 'Should have correct site URL')
@@ -58,20 +53,17 @@ unlisted:
     })
   })
 
-  it('should generate correct docs entries', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-      const workspace = join(root, 'workspace')
-
-      await createFixtures(source, {
+  it('should generate correct docs entries', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'index.md': '---\ntitle: Home Page\n---\n\n# Welcome',
         'guides/quickstart.md': '---\ntitle: Quick Start\n---\n\n# Getting Started',
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
 
-      const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf-8'))
+      const manifest = JSON.parse(read(join(testdir, '.docfu', 'manifest.json')))
 
       assert.strictEqual(manifest.docs.length, 2, 'Should have 2 docs entries')
 
@@ -91,20 +83,18 @@ unlisted:
     })
   })
 
-  it('should generate correct slugs from file paths', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-
-      await createFixtures(source, {
+  it('should generate correct slugs from file paths', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'README.md': '# Root README',
         'api/index.md': '# API Index',
         'guides/Getting-Started.md': '# Guide',
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
 
-      const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf-8'))
+      const manifest = JSON.parse(read(join(testdir, '.docfu', 'manifest.json')))
 
       // README.md -> index -> slug "index"
       const rootEntry = manifest.docs.find(d => d.slug === 'index')
@@ -120,19 +110,17 @@ unlisted:
     })
   })
 
-  it('should include components in manifest when present', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-
-      await createFixtures(source, {
+  it('should include components in manifest when present', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'index.md': '# Home',
         'components/MyButton.jsx': 'export default function MyButton() { return <button>Click</button> }',
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
 
-      const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf-8'))
+      const manifest = JSON.parse(read(join(testdir, '.docfu', 'manifest.json')))
 
       assert.ok(manifest.components, 'Should have components object')
       assert.strictEqual(manifest.components.directory, 'components', 'Should have correct directory')
@@ -145,19 +133,17 @@ unlisted:
     })
   })
 
-  it('should include CSS in manifest when present', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-
-      await createFixtures(source, {
+  it('should include CSS in manifest when present', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'index.md': '# Home',
         'assets/custom.css': 'body { color: red; }',
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
 
-      const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf-8'))
+      const manifest = JSON.parse(read(join(testdir, '.docfu', 'manifest.json')))
 
       assert.ok(manifest.css, 'Should have css object')
       assert.ok(Array.isArray(manifest.css.items), 'Should have css items array')
@@ -168,18 +154,16 @@ unlisted:
     })
   })
 
-  it('should handle manifest without optional fields', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-
-      await createFixtures(source, {
+  it('should handle manifest without optional fields', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'index.md': '# Home',
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
 
-      const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf-8'))
+      const manifest = JSON.parse(read(join(testdir, '.docfu', 'manifest.json')))
 
       // Should have required fields
       assert.ok(manifest.config, 'Should have config')
@@ -191,20 +175,17 @@ unlisted:
     })
   })
 
-  it('should handle files with format conversion in manifest', async () => {
-    await isolate(async source => {
-      const root = join(dirname(source), 'root')
-      const workspace = join(root, 'workspace')
-
-      await createFixtures(source, {
+  it('should handle files with format conversion in manifest', ({task}) => {
+    quarantine(task, testdir => {
+      createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'with-jsx.md': '# Page\n\n<Card title="Test" />',
         'with-markdoc.md': '# Page\n\n{% aside type="note" %}Note{% /aside %}',
       })
 
-      x(`node ./bin/docfu stage ${source} --sandbox ${root} --unsafe`)
+      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
 
-      const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf-8'))
+      const manifest = JSON.parse(read(join(testdir, '.docfu', 'manifest.json')))
 
       const jsxEntry = manifest.docs.find(d => d.slug === 'with-jsx')
       assert.ok(jsxEntry, 'Should have with-jsx entry')
