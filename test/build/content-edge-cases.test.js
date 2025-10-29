@@ -1,114 +1,36 @@
 /**
- * CLI tests for content edge cases
+ * Build tests for content edge cases
  * Tests duplicate slugs, special characters, unusual content patterns
  */
 
-import {describe, it, beforeAll} from 'vitest'
-import assert from 'assert'
-import {existsSync, readFileSync, mkdirSync, writeFileSync} from 'fs'
-import {join} from 'path'
-import {runCLI, getTestPaths, cleanupTestFile, createInlineFixtures} from '../helpers.js'
+import {assert, describe, it} from 'vitest'
+import {realpath} from '../../lib/file-system.js'
+import {createFixtures, quarantine, spawn} from '../utils.js'
+import {parseHTML} from '../parsers/html-parser.js'
+import {parseJSON} from '../parsers/json-parser.js'
+import base from '../../lib/base.js'
 
 describe('Content Edge Cases', () => {
-  beforeAll(() => cleanupTestFile(import.meta.url))
+  it('should handle various content edge cases and file patterns', async ({task}) =>
+    quarantine(task, async sourcedir => {
+      const longTitle =
+        'This Is A Very Long Title That Goes On And On And On And Contains Many Words To Test Title Handling With Extremely Long Content That Might Need Truncation Or Special Handling In Various Parts Of The System'
 
-  it('should handle duplicate slugs (same filename in different dirs)', async () => {
-    const paths = getTestPaths('edge-duplicate-slugs', import.meta.url)
-
-    mkdirSync(join(paths.source, 'api'), {recursive: true})
-    mkdirSync(join(paths.source, 'guides'), {recursive: true})
-
-    writeFileSync(join(paths.source, 'docfu.yml'), 'site:\n  name: Test\n  url: https://test.com')
-    writeFileSync(join(paths.source, 'index.md'), '# Home')
-    writeFileSync(join(paths.source, 'api', 'reference.md'), '# API Reference\n\nAPI docs')
-    writeFileSync(join(paths.source, 'guides', 'reference.md'), '# Guide Reference\n\nGuide docs')
-
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
-
-    assert.strictEqual(exitCode, 0, 'Should handle duplicate filenames in different dirs')
-
-    assert.ok(existsSync(join(paths.dist, 'api', 'reference', 'index.html')), 'Should create API reference')
-    assert.ok(existsSync(join(paths.dist, 'guides', 'reference', 'index.html')), 'Should create guides reference')
-
-    const apiHtml = readFileSync(join(paths.dist, 'api', 'reference', 'index.html'), 'utf-8')
-    const guidesHtml = readFileSync(join(paths.dist, 'guides', 'reference', 'index.html'), 'utf-8')
-
-    assert.ok(apiHtml.includes('API Reference'), 'API page should have correct content')
-    assert.ok(guidesHtml.includes('Guide Reference'), 'Guides page should have correct content')
-  })
-
-  it('should handle special characters in filenames', async () => {
-    const paths = getTestPaths('edge-special-chars', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
-    })
-
-    writeFileSync(join(paths.source, 'file-with-dashes.md'), '# Dashes\n\nContent')
-    writeFileSync(join(paths.source, 'file_with_underscores.md'), '# Underscores\n\nContent')
-    writeFileSync(join(paths.source, 'file with spaces.md'), '# Spaces\n\nContent')
-
-    const {exitCode} = await runCLI(['prepare', paths.source, '--root', paths.root])
-
-    assert.strictEqual(exitCode, 0, 'Should handle special characters in filenames')
-
-    assert.ok(
-      existsSync(join(paths.workspace, 'src/content/docs/file-with-dashes.md')),
-      'Should process files with dashes'
-    )
-    assert.ok(
-      existsSync(join(paths.workspace, 'src/content/docs/file_with_underscores.md')),
-      'Should process files with underscores'
-    )
-    assert.ok(
-      existsSync(join(paths.workspace, 'src/content/docs/file with spaces.md')),
-      'Should process files with spaces'
-    )
-  })
-
-  it('should handle very long titles', async () => {
-    const paths = getTestPaths('edge-long-title', import.meta.url)
-    const longTitle =
-      'This Is A Very Long Title That Goes On And On And On And Contains Many Words To Test Title Handling With Extremely Long Content That Might Need Truncation Or Special Handling In Various Parts Of The System'
-
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
-      'index.md': '# Home',
-      'long-title.md': `# ${longTitle}\n\nContent here.`,
-    })
-
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
-
-    assert.strictEqual(exitCode, 0, 'Should handle very long titles')
-
-    const manifest = JSON.parse(readFileSync(join(paths.root, 'manifest.json'), 'utf-8'))
-    const doc = manifest.docs.find(d => d.slug === 'long-title')
-    assert.ok(doc, 'Should include document in manifest')
-    assert.ok(doc.title.includes('Very Long Title'), 'Should preserve long title')
-  })
-
-  it('should handle files with unicode and emoji in content', async () => {
-    const paths = getTestPaths('edge-unicode', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
-      'index.md': '# Home',
-      'unicode.md': '# Unicode Test 🚀\n\nContent with emoji 😀 and unicode: café, naïve, 你好',
-    })
-
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
-
-    assert.strictEqual(exitCode, 0, 'Should handle unicode and emoji')
-
-    const html = readFileSync(join(paths.dist, 'unicode/index.html'), 'utf-8')
-    assert.ok(html.includes('🚀') || html.includes('1F680'), 'Should include emoji')
-    assert.ok(html.includes('café'), 'Should include unicode characters')
-  })
-
-  it('should handle markdown mixed with HTML tags', async () => {
-    const paths = getTestPaths('edge-html-mixed', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
-      'index.md': '# Home',
-      'mixed.md': `# Mixed Content
+      createFixtures(sourcedir, {
+        'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
+        // Duplicate slugs in different dirs
+        'api/reference.md': '# API Reference\n\nAPI docs',
+        'guides/reference.md': '# Guide Reference\n\nGuide docs',
+        // Special characters in filenames
+        'file-with-dashes.md': '# Dashes\n\nDashes content',
+        'file_with_underscores.md': '# Underscores\n\nUnderscores content',
+        'file with spaces.md': '# Spaces\n\nSpaces content',
+        // Long title
+        'long-title.md': `# ${longTitle}\n\nContent here.`,
+        // Unicode and emoji
+        'unicode.md': '# Unicode Test 🚀\n\nContent with emoji 😀 and unicode: café, naïve, 你好',
+        // Mixed HTML and markdown
+        'mixed.md': `# Mixed Content
 
 <div class="custom">
 This is **markdown** inside HTML.
@@ -117,118 +39,111 @@ This is **markdown** inside HTML.
 Regular markdown here.
 
 <span style="color: red;">Inline HTML</span> with *markdown*.`,
-    })
+        // README renaming
+        'README.md': '# Project README\n\nMain readme',
+        'docs/README.md': '# Docs README\n\nDocs intro',
+        // Deep nesting
+        'a/b/c/d/e/deep.md': '# Deep File\n\nDeeply nested',
+        // Empty heading
+        'empty-heading.md': '# \n\nContent after empty heading.\n\n## Another Section',
+      })
 
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
+      await spawn(`node ./bin/docfu build --unsafe ${sourcedir}`)
+      base.source = sourcedir
 
-    assert.strictEqual(exitCode, 0, 'Should handle mixed markdown and HTML')
+      // Verify duplicate slugs in different dirs
+      parseHTML(base.dist, 'api', 'reference', 'index.html', ({assertText}) => {
+        assertText('main', 'API Reference')
+        assertText('main', 'API docs')
+      })
+      parseHTML(base.dist, 'guides', 'reference', 'index.html', ({assertText}) => assertText('main', 'Guide Reference'))
 
-    const html = readFileSync(join(paths.dist, 'mixed/index.html'), 'utf-8')
-    assert.ok(html.includes('class="custom"'), 'Should preserve HTML attributes')
-    assert.ok(html.includes('This is') && html.includes('markdown'), 'Should preserve content inside HTML')
-  })
+      // Verify special characters in filenames
+      assert(realpath(base.dist, 'file-with-dashes', 'index.html'), 'Should build files with dashes')
+      assert(realpath(base.dist, 'file_with_underscores', 'index.html'), 'Should build files with underscores')
+      assert(realpath(base.dist, 'file-with-spaces', 'index.html'), 'Should normalize spaces to dashes')
 
-  it('should handle README.md files', async () => {
-    const paths = getTestPaths('edge-readme', import.meta.url)
+      // Verify long title
+      parseJSON(base.sandbox, 'manifest.json', ({assertContainsWhere}) => {
+        assertContainsWhere('docs', {slug: 'long-title'})
+      })
+      parseHTML(base.dist, 'long-title', 'index.html', ({assertText}) => assertText('h1', longTitle))
 
-    mkdirSync(join(paths.source, 'guides'), {recursive: true})
-    writeFileSync(join(paths.source, 'docfu.yml'), 'site:\n  name: Test\n  url: https://test.com')
-    writeFileSync(join(paths.source, 'README.md'), '# Project README\n\nMain readme')
-    writeFileSync(join(paths.source, 'guides', 'README.md'), '# Guides README\n\nGuides intro')
+      // Verify unicode and emoji
+      parseHTML(base.dist, 'unicode', 'index.html', ({assertText}) => {
+        assertText('main', '😀')
+        assertText('main', 'café')
+        assertText('main', '你好')
+      })
 
-    const {exitCode} = await runCLI(['prepare', paths.source, '--root', paths.root])
+      // Verify mixed HTML and markdown
+      parseHTML(base.dist, 'mixed', 'index.html', ({assertSelector, assertText}) => {
+        assertSelector('.custom')
+        assertText('.custom', 'markdown')
+        assertSelector('span[style*="color"]')
+      })
 
-    assert.strictEqual(exitCode, 0, 'Should handle README.md files')
+      // Verify README renaming
+      parseHTML(base.dist, 'index.html', ({assertText}) => assertText('h1', 'Project README'))
+      parseHTML(base.dist, 'docs', 'index.html', ({assertText}) => assertText('h1', 'Docs README'))
 
-    assert.ok(existsSync(join(paths.workspace, 'src/content/docs/index.md')), 'Should rename root README to index.md')
-    assert.ok(
-      existsSync(join(paths.workspace, 'src/content/docs/guides', 'index.md')),
-      'Should rename nested README to index.md'
-    )
-    assert.ok(!existsSync(join(paths.workspace, 'src/content/docs/README.md')), 'Root README.md should not exist')
-    assert.ok(
-      !existsSync(join(paths.workspace, 'src/content/docs/guides', 'README.md')),
-      'Nested README.md should not exist'
-    )
-
-    const manifest = JSON.parse(readFileSync(join(paths.root, 'manifest.json'), 'utf-8'))
-    assert.ok(
-      manifest.docs.find(d => d.title === 'Project README'),
-      'Should include README in manifest'
-    )
-    assert.ok(
-      manifest.docs.find(d => d.title === 'Guides README'),
-      'Should include nested README'
-    )
-  })
-
-  it('should handle case-sensitive filenames', async () => {
-    const paths = getTestPaths('edge-case-sensitive', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
-      'Guide.md': '# Guide (capitalized)\n\nContent',
-      'guide.md': '# guide (lowercase)\n\nDifferent content',
-    })
-
-    const {exitCode} = await runCLI(['prepare', paths.source, '--root', paths.root])
-
-    if (
-      existsSync(join(paths.workspace, 'src/content/docs/Guide.md')) &&
-      existsSync(join(paths.workspace, 'src/content/docs/guide.md'))
-    ) {
-      assert.strictEqual(exitCode, 0, 'Should handle case-sensitive filenames')
-    } else {
-      assert.ok(
-        existsSync(join(paths.workspace, 'src/content/docs/Guide.md')) ||
-          existsSync(join(paths.workspace, 'src/content/docs/guide.md')),
-        'Should process at least one version'
+      // Verify deep nesting
+      assert(realpath(base.dist, 'a', 'b', 'c', 'd', 'e', 'deep', 'index.html'), 'Should preserve deep nesting')
+      parseHTML(base.dist, 'a', 'b', 'c', 'd', 'e', 'deep', 'index.html', ({assertText}) =>
+        assertText('h1', 'Deep File')
       )
-    }
-  })
 
-  it('should handle files with no extension', async () => {
-    const paths = getTestPaths('edge-no-extension', import.meta.url)
+      // Verify empty heading
+      parseHTML(base.dist, 'empty-heading', 'index.html', ({assertText}) => {
+        assertText('main', 'Content after empty heading')
+        assertText('main', 'Another Section')
+      })
+    }))
 
-    mkdirSync(paths.source, {recursive: true})
-    writeFileSync(join(paths.source, 'docfu.yml'), 'site:\n  name: Test\n  url: https://test.com')
-    writeFileSync(join(paths.source, 'index.md'), '# Home')
-    writeFileSync(join(paths.source, 'LICENSE'), 'MIT License text')
-    writeFileSync(join(paths.source, 'CHANGELOG'), '# Changelog\n\nVersion 1.0')
+  it('should handle case-sensitive filenames', async ({task}) =>
+    quarantine(task, async sourcedir => {
+      createFixtures(sourcedir, {
+        'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
+        'Guide.md': '# Guide (capitalized)\n\nCapitalized content',
+        'guide.md': '# guide (lowercase)\n\nLowercase content',
+      })
 
-    const {exitCode} = await runCLI(['prepare', paths.source, '--root', paths.root])
+      await spawn(`node ./bin/docfu build --unsafe ${sourcedir}`)
+      base.source = sourcedir
 
-    assert.strictEqual(exitCode, 0, 'Should handle files without extensions')
+      // On case-insensitive filesystems (macOS, Windows), both files map to same slug
+      // On case-sensitive filesystems (Linux), they're separate files
+      const hasGuide = realpath(base.dist, 'guide', 'index.html')
+      const hasCapitalGuide = realpath(base.dist, 'Guide', 'index.html')
 
-    assert.ok(existsSync(join(paths.workspace, 'src/content/docs/index.md')), 'Should process markdown files')
-  })
+      assert(hasGuide || hasCapitalGuide, 'Should build at least one version')
 
-  it('should handle very deeply nested directories', async () => {
-    const paths = getTestPaths('edge-deep-nesting', import.meta.url)
+      // Just verify one was built - content will depend on which file "won" on case-insensitive FS
+      if (hasGuide) {
+        parseHTML(base.dist, 'guide', 'index.html', ({assertText}) => assertText('main', /content/i))
+      } else {
+        parseHTML(base.dist, 'Guide', 'index.html', ({assertText}) => assertText('main', /content/i))
+      }
+    }))
 
-    const deepPath = join(paths.source, 'a', 'b', 'c', 'd', 'e', 'f', 'g')
-    mkdirSync(deepPath, {recursive: true})
+  it('should ignore files with no extension', async ({task}) =>
+    quarantine(task, async sourcedir => {
+      createFixtures(sourcedir, {
+        'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
+        'index.md': '# Home',
+        LICENSE: 'MIT License text',
+        CHANGELOG: '# Changelog\n\nVersion 1.0',
+      })
 
-    writeFileSync(join(paths.source, 'docfu.yml'), 'site:\n  name: Test\n  url: https://test.com')
-    writeFileSync(join(deepPath, 'deep.md'), '# Deep File\n\nDeeply nested content')
+      await spawn(`node ./bin/docfu build --unsafe ${sourcedir}`)
+      base.source = sourcedir
 
-    const {exitCode} = await runCLI(['prepare', paths.source, '--root', paths.root])
+      parseJSON(base.sandbox, 'manifest.json', ({assertLength, assertContainsWhere}) => {
+        // Only index.md should be processed
+        assertLength('docs', 1)
+        assertContainsWhere('docs', {slug: 'index'})
+      })
 
-    assert.strictEqual(exitCode, 0, 'Should handle deeply nested directories')
-    assert.ok(
-      existsSync(join(paths.workspace, 'src/content/docs/a', 'b', 'c', 'd', 'e', 'f', 'g', 'deep.md')),
-      'Should preserve deep nesting'
-    )
-  })
-
-  it('should handle empty headings', async () => {
-    const paths = getTestPaths('edge-empty-heading', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
-      'empty-heading.md': '# \n\nContent after empty heading.\n\n## Another Section',
-    })
-
-    const {exitCode} = await runCLI(['prepare', paths.source, '--root', paths.root])
-
-    assert.ok(exitCode === 0 || exitCode === 1, 'Should handle empty heading gracefully')
-  })
+      parseHTML(base.dist, 'index.html', ({assertText}) => assertText('h1', 'Home'))
+    }))
 })

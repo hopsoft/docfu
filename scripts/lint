@@ -1,0 +1,19 @@
+#!/usr/bin/env node
+
+import '../lib/logger.js'
+import {pm} from '../lib/package-manager.js'
+
+await pm.run(
+  'prettier',
+  '--check',
+  '*.js',
+  '*.json',
+  '*.md',
+  '*.mjs',
+  './bin',
+  './lib',
+  './public/**/*.js',
+  './scripts',
+  './src',
+  './test'
+)

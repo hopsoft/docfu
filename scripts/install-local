@@ -1,0 +1,10 @@
+#!/usr/bin/env node
+
+import {Pathname} from '../lib/pathname.js'
+import {loadPackageJSON} from '../lib/packages.js'
+import {pm} from '../lib/package-manager.js'
+
+await pm.pack()
+const filename = `docfu-${loadPackageJSON()?.version}.tgz`
+const filepath = new Pathname(import.meta.url).directory.join(filename)
+await pm.run('npm', 'install', filepath)

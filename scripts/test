@@ -1,0 +1,37 @@
+#!/usr/bin/env node
+
+import {Command} from 'commander'
+import {pm} from '../lib/package-manager.js'
+
+const program = new Command()
+
+program
+  .name('test')
+  .description('Run docfu test suite with package manager support')
+  .argument('[path]', 'Optional path to test directory or file')
+  .addHelpText(
+    'after',
+    `
+Examples:
+  $ npm test                            # Run all tests with npm
+  $ npm test -- test/prepare            # Run prepare tests only
+  $ bun test
+  $ pnpm test
+  $ yarn test
+`
+  )
+  .parse()
+
+const start = Date.now()
+const path = program.args[0] || ''
+
+// generate lockfile if missing or stale (older than 5 minutes)
+const stats = pm.lockfilePath.stat()
+const needsLockfile = !pm.lockfileExists || !stats?.mtime || Date.now() - stats.mtime.getTime() >= 5 * 60 * 1000
+if (needsLockfile) await pm.lock()
+
+// run tests
+await pm.test(path, {env: {...process.env, DOCFU_PM_LOCKFILE: String(pm.lockfilePath)}})
+
+console.log()
+console.log(`Total Time: ${((Date.now() - start) / 1000).toFixed(2)}s`)

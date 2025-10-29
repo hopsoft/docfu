@@ -1,220 +1,98 @@
-/**
- * CLI tests for complete build artifacts
- * Tests 404 page content, sitemap, meta tags, OpenGraph
- */
-
-import {describe, it, beforeAll} from 'vitest'
-import assert from 'assert'
-import {existsSync, readFileSync, writeFileSync} from 'fs'
-import {join} from 'path'
-import {runCLI, getTestPaths, cleanupTestFile, createInlineFixtures} from '../helpers.js'
+import {assert, describe, it} from 'vitest'
+import {join, mkdir, realpath, write} from '../../lib/file-system.js'
+import {createFixtures, quarantine, spawn} from '../utils.js'
+import {parseHTML} from '../parsers/html-parser.js'
+import {parseXML} from '../parsers/xml-parser.js'
+import {parseText} from '../parsers/text-parser.js'
+import base from '../../lib/base.js'
 
 describe('Build Artifacts', () => {
-  beforeAll(() => cleanupTestFile(import.meta.url))
+  it('should generate complete site with all expected build artifacts', async ({task}) =>
+    quarantine(task, async sourcedir => {
+      mkdir(sourcedir, 'public')
 
-  it('should generate 404 page with content', async () => {
-    const paths = getTestPaths('artifacts-404', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test Docs\n  url: https://test.example.com',
-      'index.md': '# Home\n\nWelcome',
-    })
+      createFixtures(sourcedir, {
+        'docfu.yml': 'site:\n  name: Test Documentation\n  url: https://docs.example.com',
+        'index.md':
+          '---\ntitle: Welcome\ndescription: Test documentation site\n---\n\n# Welcome\n\nContent with **bold** and *italic*.\n\n![Test Asset](./images/test-asset-unique.png)',
+        'guide.md': '# Guide',
+        'api.md': '# API',
+        'images/icons/small.svg': '<svg></svg>',
+      })
 
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
+      write(join(sourcedir, 'public', 'favicon.ico'), 'fake-favicon-data')
 
-    assert.strictEqual(exitCode, 0, 'Build should succeed')
-    assert.ok(existsSync(join(paths.dist, '404.html')), 'Should generate 404.html')
+      const pngData = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        'base64'
+      )
+      write(join(sourcedir, 'images', 'test-asset-unique.png'), pngData)
 
-    const html404 = readFileSync(join(paths.dist, '404.html'), 'utf-8')
-    assert.ok(html404.includes('404') || html404.includes('not found'), 'Should mention 404 or not found')
-    assert.ok(html404.includes('<html') && html404.includes('</html>'), 'Should be valid HTML')
-    assert.ok(html404.includes('Test Docs'), 'Should include site name')
-  })
+      await spawn(`node ./bin/docfu build --unsafe ${sourcedir}`)
+      base.source = sourcedir
 
-  it('should include OpenGraph meta tags', async () => {
-    const paths = getTestPaths('artifacts-og-tags', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test Documentation\n  url: https://docs.example.com',
-      'index.md': '---\ntitle: Welcome\ndescription: Test documentation site\n---\n\n# Welcome\n\nContent here.',
-    })
+      // Check 404 page
+      parseHTML(base.dist, '404.html', ({assertText}) => {
+        assertText('title', '404')
+        assertText('body', '404')
+      })
 
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
+      // Check index.html - structure, metadata, assets, favicon, navigation, and images
+      parseHTML(base.dist, 'index.html', ({assertSelector, assertText}) => {
+        // Valid HTML structure
+        assertSelector('html')
+        assertSelector('head')
+        assertSelector('body')
+        assertSelector('meta[charset]')
+        assertSelector('title')
+        assertSelector('meta[name="viewport"]')
 
-    assert.strictEqual(exitCode, 0, 'Build should succeed')
+        // OpenGraph meta tags
+        assertSelector('meta[property="og:title"]')
+        assertSelector('meta[name="description"]')
+        assertSelector('meta[property="og:site_name"], title')
 
-    const indexHtml = readFileSync(join(paths.dist, 'index.html'), 'utf-8')
+        // CSS and JS assets
+        assertSelector('link[rel="stylesheet"], style')
+        assertSelector('script[src], script[type="module"]')
 
-    assert.ok(indexHtml.includes('og:title') || indexHtml.includes('property="og:title"'), 'Should have og:title')
-    assert.ok(
-      indexHtml.includes('og:site_name') || indexHtml.includes('Test Documentation'),
-      'Should have site name meta'
-    )
+        // Favicon
+        assertSelector('link[rel="icon"], link[rel="shortcut icon"]')
 
-    assert.ok(indexHtml.includes('<meta'), 'Should have meta tags')
-    assert.ok(indexHtml.includes('description'), 'Should have description meta tag')
-  })
+        // Navigation structure
+        assertSelector('nav.sidebar')
+        assertText('nav.sidebar', /guide/i)
+        assertText('nav.sidebar', /api/i)
 
-  it('should generate valid HTML structure', async () => {
-    const paths = getTestPaths('artifacts-html-valid', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
-      'page.md': '# Page\n\nContent with **bold** and *italic*.',
-    })
+        // Image processing
+        assertSelector('img[alt="Test Asset"]')
+        assertSelector('img[src*="test-asset-unique"]')
+      })
 
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
+      // Asset directory and sitemap
+      assert(realpath(base.dist, '_astro'), 'Should have _astro assets directory')
 
-    assert.strictEqual(exitCode, 0, 'Build should succeed')
+      // Sitemap with proper XML structure
+      parseXML(base.dist, 'sitemap-index.xml', ({assertKey, assertContains}) => {
+        assertKey('sitemapindex')
+        assertKey('sitemapindex.sitemap')
+        assertContains('example.com')
+      })
 
-    const html = readFileSync(join(paths.dist, 'page/index.html'), 'utf-8')
+      // llms.txt artifacts for AI/LLM consumption
+      parseText(base.dist, 'llms.txt', ({assertContains}) => {
+        assertContains('Documentation Sets')
+        assertContains('llms-small.txt')
+        assertContains('llms-full.txt')
+      })
 
-    assert.ok(html.includes('<!DOCTYPE html>') || html.includes('<!doctype html>'), 'Should have DOCTYPE')
-    assert.ok(html.includes('<html'), 'Should have html tag')
-    assert.ok(html.includes('<head>'), 'Should have head section')
-    assert.ok(html.includes('<body>') || html.includes('<body '), 'Should have body section')
-    assert.ok(html.includes('</html>'), 'Should close html tag')
+      parseText(base.dist, 'llms-small.txt', ({assertContains}) => {
+        assertContains('<SYSTEM>')
+        assertContains('Welcome')
+      })
 
-    assert.ok(html.includes('<meta charset='), 'Should have charset meta')
-    assert.ok(html.includes('<title>'), 'Should have title tag')
-    assert.ok(html.includes('viewport'), 'Should have viewport meta')
-  })
-
-  it('should include CSS and JS assets with proper references', async () => {
-    const paths = getTestPaths('artifacts-assets-refs', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
-      'index.md': '# Home\n\nContent',
-    })
-
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
-
-    assert.strictEqual(exitCode, 0, 'Build should succeed')
-
-    const indexHtml = readFileSync(join(paths.dist, 'index.html'), 'utf-8')
-
-    assert.ok(indexHtml.includes('.css') || indexHtml.includes('stylesheet'), 'Should reference CSS files')
-
-    assert.ok(indexHtml.includes('.js') || indexHtml.includes('script'), 'Should reference JS files')
-
-    assert.ok(existsSync(join(paths.dist, '_astro')), 'Should have _astro assets directory')
-  })
-
-  it('should generate sitemap if configured', async () => {
-    const paths = getTestPaths('artifacts-sitemap', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test\n  url: https://test.example.com',
-      'index.md': '# Home',
-      'about.md': '# About',
-      'guide.md': '# Guide',
-    })
-
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
-
-    assert.strictEqual(exitCode, 0, 'Build should succeed')
-
-    const sitemapPath = join(paths.dist, 'sitemap-index.xml')
-    if (existsSync(sitemapPath)) {
-      const sitemap = readFileSync(sitemapPath, 'utf-8')
-      assert.ok(sitemap.includes('<?xml'), 'Sitemap should be XML')
-      assert.ok(sitemap.includes('sitemap'), 'Should be a sitemap')
-    }
-  })
-
-  it('should include favicon if provided', async () => {
-    const paths = getTestPaths('artifacts-favicon', import.meta.url)
-
-    const {mkdirSync, writeFileSync} = await import('fs')
-    mkdirSync(join(paths.source, 'public'), {recursive: true})
-
-    writeFileSync(join(paths.source, 'docfu.yml'), 'site:\n  name: Test\n  url: https://test.com')
-    writeFileSync(join(paths.source, 'index.md'), '# Home')
-    writeFileSync(join(paths.source, 'public', 'favicon.ico'), 'fake-favicon-data')
-
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
-
-    assert.strictEqual(exitCode, 0, 'Build should succeed with favicon')
-
-    const indexHtml = readFileSync(join(paths.dist, 'index.html'), 'utf-8')
-    assert.ok(indexHtml.includes('favicon') || indexHtml.includes('icon'), 'Should reference favicon')
-  })
-
-  it('should have proper heading hierarchy in HTML', async () => {
-    const paths = getTestPaths('artifacts-heading-hierarchy', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
-      'hierarchy.md': `# Main Title
-
-## Section 1
-
-Content here.
-
-### Subsection 1.1
-
-More content.
-
-## Section 2
-
-Final content.`,
-    })
-
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
-
-    assert.strictEqual(exitCode, 0, 'Build should succeed')
-
-    const html = readFileSync(join(paths.dist, 'hierarchy/index.html'), 'utf-8')
-
-    assert.ok(html.match(/<h1/i), 'Should have h1 tag')
-    assert.ok(html.match(/<h2/i), 'Should have h2 tags')
-    assert.ok(html.match(/<h3/i), 'Should have h3 tags')
-
-    // Headings should have IDs for anchor links
-    assert.ok(html.includes('id="section-1"') || html.includes('id="Section-1"'), 'h2 should have ID')
-  })
-
-  it('should preserve assets directory structure in build', async () => {
-    const paths = getTestPaths('artifacts-asset-structure', import.meta.url)
-
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
-      'index.md': '# Home\n\n![Logo](./images/logo.png)',
-      'images/icons/small.svg': '<svg></svg>',
-    })
-
-    const pngData = Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-      'base64'
-    )
-    writeFileSync(join(paths.source, 'images', 'logo.png'), pngData)
-
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
-
-    assert.strictEqual(exitCode, 0, 'Build should succeed')
-    assert.ok(
-      existsSync(join(paths.workspace, 'src/content/docs/images', 'logo.png')),
-      'Should copy images to workspace'
-    )
-    assert.ok(
-      existsSync(join(paths.workspace, 'src/content/docs/images', 'icons', 'small.svg')),
-      'Should preserve asset structure'
-    )
-  })
-
-  it('should have accessible navigation structure', async () => {
-    const paths = getTestPaths('artifacts-nav-accessible', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test Docs\n  url: https://test.com',
-      'index.md': '# Home',
-      'guide.md': '# Guide',
-      'api.md': '# API',
-    })
-
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
-
-    assert.strictEqual(exitCode, 0, 'Build should succeed')
-
-    const indexHtml = readFileSync(join(paths.dist, 'index.html'), 'utf-8')
-
-    assert.ok(indexHtml.includes('<nav'), 'Should have nav element')
-
-    assert.ok(indexHtml.includes('Guide') || indexHtml.includes('guide'), 'Nav should include Guide')
-    assert.ok(indexHtml.includes('API') || indexHtml.includes('api'), 'Nav should include API')
-  })
+      parseText(base.dist, 'llms-full.txt', ({assertContains}) => {
+        assertContains('Welcome')
+      })
+    }))
 })

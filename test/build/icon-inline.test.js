@@ -1,84 +1,97 @@
 /**
  * Icon inline CSS class test
- * Verifies Icon component with .inline class displays icons inline
+ * Verifies Icon component with .inline class displays icons inline across all formats
  */
 
-import {describe, it, beforeAll} from 'vitest'
-import assert from 'assert'
-import {existsSync} from 'fs'
-import {readFileSync} from 'fs'
-import {join} from 'path'
-import {runCLI, getTestPaths, createInlineFixtures, cleanupTestFile} from '../helpers.js'
-
-beforeAll(() => cleanupTestFile(import.meta.url))
+import {assert, describe, it} from 'vitest'
+import {createFixtures, quarantine, spawn} from '../utils.js'
+import {parseHTML} from '../parsers/html-parser.js'
+import base from '../../lib/base.js'
 
 describe('Icon Component - Inline CSS Class', () => {
-  it('should support Icon with inline class in MDX', async () => {
-    const paths = getTestPaths('icon-inline-mdx', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
-      'index.md': `# Icon Inline Test
+  it('should support Icon with inline class across all formats and syntaxes', async ({task}) =>
+    quarantine(task, async sourcedir => {
+      createFixtures(sourcedir, {
+        'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
+        // .md with JSX (auto-detected as MDX)
+        'md-jsx.md': `# Icon Inline Test - MD with JSX
 
 This is text with an inline icon <Icon name="star" class="inline" /> in the middle.
 
 Regular icon without inline:
 <Icon name="rocket" />`,
-    })
-
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
-
-    assert.strictEqual(exitCode, 0, 'Build should succeed')
-    assert.ok(existsSync(join(paths.dist, 'index.html')), 'Should generate index.html')
-
-    const html = readFileSync(join(paths.dist, 'index.html'), 'utf-8')
-    assert.ok(html.includes('class="inline'), 'Should have inline class on icon')
-
-    // Verify icon actually renders (SVG contains path elements, not empty)
-    const inlineIconMatch = html.match(/class="inline[^>]*>[\s\S]*?<path/)
-    assert.ok(inlineIconMatch, 'Should find inline icon SVG with path elements')
-  })
-
-  it('should support Icon with inline class in Markdoc', async () => {
-    const paths = getTestPaths('icon-inline-markdoc', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
-      'index.md': `# Icon Inline Test
+        // .md with Markdoc tags (auto-detected as Markdoc)
+        'md-tags.md': `# Icon Inline Test - MD with Markdoc Tags
 
 This is text with an inline icon {% icon name="star" class="inline" /%} in the middle.
 
 Regular icon without inline:
 {% icon name="rocket" /%}`,
-    })
+        // .mdx with Icon component
+        'mdx-component.mdx': `---
+title: MDX Component
+---
 
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
+# Icon Inline Test - MDX Component
 
-    assert.strictEqual(exitCode, 0, 'Build should succeed')
-    assert.ok(existsSync(join(paths.dist, 'index.html')), 'Should generate index.html')
+This is text with an inline icon <Icon name="star" class="inline" /> in the middle.
 
-    const html = readFileSync(join(paths.dist, 'index.html'), 'utf-8')
-    assert.ok(html.includes('class="inline'), 'Should have inline class on icon')
+Regular icon without inline:
+<Icon name="rocket" />`,
+        // .mdoc with Icon tag
+        'mdoc-tag.mdoc': `---
+title: Markdoc Tag
+---
 
-    // Verify icon actually renders (SVG contains path elements, not empty)
-    const inlineIconMatch = html.match(/class="inline[^>]*>[\s\S]*?<path/)
-    assert.ok(inlineIconMatch, 'Should find inline icon SVG with path elements')
-  })
+# Icon Inline Test - Markdoc Tag
 
-  it('should default to block display without inline attribute', async () => {
-    const paths = getTestPaths('icon-block-default', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
-      'index.md': `# Icon Default Test
+This is text with an inline icon {% icon name="star" class="inline" /%} in the middle.
 
-<Icon name="star" />`,
-    })
+Regular icon without inline:
+{% icon name="rocket" /%}`,
+      })
 
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
+      await spawn(`node ./bin/docfu build --unsafe ${sourcedir}`)
+      base.source = sourcedir
 
-    assert.strictEqual(exitCode, 0, 'Build should succeed')
+      // Test .md with JSX (auto-detected and converted to .mdx)
+      parseHTML(base.dist, 'md-jsx', 'index.html', ({assertText, assertSelector, assertAttr}) => {
+        assertText('main', 'This is text with an inline icon')
+        assertSelector('svg.inline')
+        assertAttr('svg.inline', 'class', 'inline')
+        assertSelector('svg.inline path')
+        // Verify regular icon without inline class exists
+        assertSelector('svg:not(.inline)')
+      })
 
-    const html = readFileSync(join(paths.dist, 'index.html'), 'utf-8')
-    // Without inline attribute, should not have the inline styles on the wrapper span
-    // The SVG itself may have its own styles from Starlight
-    assert.ok(html.includes('svg') || html.includes('icon'), 'Should render icon')
-  })
+      // Test .md with Markdoc tags (auto-detected and converted to .mdoc)
+      parseHTML(base.dist, 'md-tags', 'index.html', ({assertText, assertSelector, assertAttr}) => {
+        assertText('main', 'This is text with an inline icon')
+        assertSelector('svg.inline')
+        assertAttr('svg.inline', 'class', 'inline')
+        assertSelector('svg.inline path')
+        // Verify regular icon without inline class exists
+        assertSelector('svg:not(.inline)')
+      })
+
+      // Test .mdx with Icon component
+      parseHTML(base.dist, 'mdx-component', 'index.html', ({assertText, assertSelector, assertAttr}) => {
+        assertText('main', 'This is text with an inline icon')
+        assertSelector('svg.inline')
+        assertAttr('svg.inline', 'class', 'inline')
+        assertSelector('svg.inline path')
+        // Verify regular icon without inline class exists
+        assertSelector('svg:not(.inline)')
+      })
+
+      // Test .mdoc with Icon tag
+      parseHTML(base.dist, 'mdoc-tag', 'index.html', ({assertText, assertSelector, assertAttr}) => {
+        assertText('main', 'This is text with an inline icon')
+        assertSelector('svg.inline')
+        assertAttr('svg.inline', 'class', 'inline')
+        assertSelector('svg.inline path')
+        // Verify regular icon without inline class exists
+        assertSelector('svg:not(.inline)')
+      })
+    }))
 })

@@ -1,212 +1,132 @@
-/**
- * CLI tests for build command
- * Tests prepare phase and build command options
- * Note: Full Astro builds are slow and tested separately
- */
-
-import {describe, it, beforeAll} from 'vitest'
-import assert from 'assert'
-import {existsSync, readFileSync, readdirSync} from 'fs'
-import {join} from 'path'
-import {runCLI, getTestPaths, createFixtures, cleanupTestFile} from '../helpers.js'
+import {assert, describe, it} from 'vitest'
+import {join, readdir, realpath} from '../../lib/file-system.js'
+import {createFixtures, quarantine, spawn} from '../utils.js'
+import {parseHTML} from '../parsers/html-parser.js'
+import {parseJSON} from '../parsers/json-parser.js'
+import {parseMDX} from '../parsers/mdx-parser.js'
+import {parseMarkdown} from '../parsers/markdown-parser.js'
+import {parseYAML} from '../parsers/yaml-parser.js'
+import base from '../../lib/base.js'
 
 describe('Build Command', () => {
-  beforeAll(() => cleanupTestFile(import.meta.url))
+  it('should build comprehensive site with all features', async ({task}) =>
+    quarantine(task, async sourcedir => {
+      createFixtures(sourcedir, {
+        'docfu.yml': 'site:\n  name: Test Documentation\n  url: https://test.example.com\nunlisted:\n  - _partials',
+        'index.md': '# Home\n\nWelcome to the docs.',
+        'with-components.md': `# Page with Components
 
-  it('should prepare files for build', async () => {
-    const paths = getTestPaths('build-prepare', import.meta.url)
-    await createFixtures(paths, 'build', ['docfu.yml', 'index.md', 'guide.md'])
+  <Card title="Test Card">
+  This is a card component
+  </Card>
 
-    // Use prepare instead of full build to keep tests fast
-    const {exitCode, stdout} = await runCLI(['prepare', paths.source, '--root', paths.root])
+  <Badge text="Success Badge" variant="tip" />`,
+        'with-markdoc.md': `# Page with Markdoc
 
-    assert.strictEqual(exitCode, 0, 'Prepare should succeed')
-    assert.ok(stdout.includes('Processing docs'), 'Should show processing message')
-    assert.ok(existsSync(paths.workspace), 'Should create workspace directory')
-    assert.ok(existsSync(join(paths.workspace, 'src/content/docs/index.md')), 'Should process index.md')
-    assert.ok(existsSync(join(paths.workspace, 'src/content/docs/guide.md')), 'Should process guide.md')
-  })
+  ## Important Note {% #important %}
 
-  it('should support --dry-run flag', async () => {
-    const paths = getTestPaths('build-dry-run', import.meta.url)
-    await createFixtures(paths, 'build', ['docfu.yml', 'index.md'])
+  {% partial file="_partials/snippet.md" /%}`,
+        '_partials/snippet.md': 'This is a reusable snippet from a partial.',
+        'guides/getting-started.md': '# Getting Started\n\nGet started guide.',
+        'api/reference.md': '# API Reference\n\nAPI documentation.',
+      })
 
-    const {exitCode, stdout} = await runCLI(['build', paths.source, '--root', paths.root, '--dry-run'])
+      await spawn(`node ./bin/docfu build --unsafe ${sourcedir}`)
+      base.source = sourcedir
 
-    assert.strictEqual(exitCode, 0, 'Should succeed')
-    assert.ok(stdout.includes('Configuration validated'), 'Should validate config')
-    assert.ok(stdout.includes('dry-run mode'), 'Should mention dry-run')
-    assert.ok(!existsSync(paths.dist), 'Should not create dist directory in dry-run')
-  })
+      parseYAML(base.sandbox, 'config.yml', ({assertKey}) => {
+        assertKey('site')
+        assertKey('site.name', 'Test Documentation')
+        assertKey('site.url', 'https://test.example.com')
+      })
 
-  it('should accept prepare command explicitly', async () => {
-    const paths = getTestPaths('build-explicit', import.meta.url)
-    await createFixtures(paths, 'build', ['docfu.yml', 'index.md'])
+      parseJSON(base.sandbox, 'manifest.json', ({assertLength, assertContainsWhere}) => {
+        assertLength('docs', 6)
+        assertContainsWhere('docs', {title: 'Home'})
+        assertContainsWhere('docs', {slug: 'with-components'})
+        assertContainsWhere('docs', {title: 'Page with Components'})
+        assertContainsWhere('docs', {slug: 'guides/getting-started'})
+      })
 
-    const {exitCode} = await runCLI(['prepare', paths.source, '--root', paths.root])
+      const docsdir = realpath(base.workspace, 'src', 'content', 'docs')
+      assert(docsdir, `Should create: ${docsdir}`)
 
-    assert.strictEqual(exitCode, 0, 'Should succeed with prepare command')
-    assert.ok(existsSync(paths.workspace), 'Should create workspace directory')
-  })
+      parseMDX(docsdir, 'with-components.mdx', ({assertImport, assertElement, assertKey}) => {
+        assertImport('Card')
+        assertImport('Badge')
+        assertImport('@astrojs/starlight/components')
+        assertElement('Card')
+        assertElement('Badge')
+        assertKey('title')
+      })
 
-  it('should support custom root directory', async () => {
-    const paths = getTestPaths('build-custom-paths', import.meta.url)
-    const customRoot = `${paths.root}-custom`
+      parseMarkdown(docsdir, 'with-markdoc.mdoc', ({assertHeading, assertTag, assertKey}) => {
+        assertHeading({text: 'Important Note', level: 2, id: 'important'})
+        assertTag('partial')
+        assertKey('title')
+      })
 
-    await createFixtures(paths, 'build', ['docfu.yml', 'index.md'])
+      parseMarkdown(docsdir, 'index.md', ({assertKey, data}) => {
+        assertKey('title')
+        assert(!data.headings.some(h => h.level === 1 && h.text === 'Home'), 'H1 should be removed')
+      })
 
-    const {exitCode} = await runCLI(['prepare', paths.source, '--root', customRoot])
+      // Build artifacts
+      const astroFiles = readdir(base.dist, '_astro')
+      const cssFiles = astroFiles?.filter(f => f.endsWith('.css')) || []
+      const jsFiles = astroFiles?.filter(f => f.endsWith('.js')) || []
+      assert(cssFiles.length > 0, 'Should generate: CSS files')
+      assert(jsFiles.length > 0, 'Should generate: JS bundles')
+      assert(realpath(base.dist, '404.html'), `Should generate: ${join(base.dist, '404.html')}`)
 
-    assert.strictEqual(exitCode, 0, 'Should succeed')
-    assert.ok(existsSync(join(customRoot, 'workspace')), 'Should create workspace in custom root')
-  })
+      parseHTML(base.dist, 'index.html', ({assertSelector, assertText}) => {
+        assertSelector('nav')
+        assertSelector('main')
+        assertText('title', 'Home')
+        assertText('title', '|')
+        assertSelector('nav a[href*="getting-started"], nav a[href*="guides"]')
+        assertSelector('nav a[href*="reference"], nav a[href*="api"]')
+      })
 
-  it('should complete full build pipeline with Astro', async () => {
-    const paths = getTestPaths('build-full', import.meta.url)
-    await createFixtures(paths, 'build', ['docfu.yml', 'index.md'])
+      parseHTML(base.dist, 'with-components', 'index.html', ({assertText}) => {
+        assertText('main', 'Success Badge')
+        assertText('main', 'Test Card')
+        assertText('main [class*="card"]', 'This is a card component')
+      })
 
-    const {exitCode, stdout} = await runCLI(['build', paths.source, '--root', paths.root])
+      parseHTML(base.dist, 'with-markdoc', 'index.html', ({assertSelector, assertText}) => {
+        assertSelector('H2#important')
+        assertText('main', 'reusable snippet from a partial')
+      })
 
-    assert.strictEqual(exitCode, 0, 'Full build should succeed')
-    assert.ok(stdout.includes('Processing docs'), 'Should show processing')
-    assert.ok(stdout.includes('Building site'), 'Should show building')
-    assert.ok(existsSync(paths.dist), 'Should create dist directory')
-    assert.ok(existsSync(join(paths.dist, 'index.html')), 'Should generate index.html')
+      parseHTML(base.dist, 'guides', 'getting-started', 'index.html', ({assertText}) => {
+        assertText('title', 'Getting Started')
+        assertText('main', 'Get started guide')
+      })
 
-    const html = readFileSync(join(paths.dist, 'index.html'), 'utf-8')
-    assert.ok(html.includes('Welcome to the test documentation'), 'HTML should contain source content')
-    assert.ok(html.includes('Home'), 'HTML should contain title')
+      parseHTML(base.dist, 'api', 'reference', 'index.html', ({assertText}) => {
+        assertText('title', 'API Reference')
+        assertText('main', 'API documentation')
+      })
+    }))
 
-    assert.ok(html.includes('<nav'), 'Should generate sidebar navigation')
-  })
+  it('should support custom sandbox directory', async ({task}) =>
+    quarantine(task, async sourcedir => {
+      const sandbox = join(sourcedir, 'custom-sandbox')
 
-  it('should use build as default command when no command specified', async () => {
-    const paths = getTestPaths('build-default-cmd', import.meta.url)
-    await createFixtures(paths, 'build', ['docfu.yml', 'index.md'])
+      createFixtures(sourcedir, {
+        'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
+        'index.md': '# Home',
+      })
 
-    // No command specified - should default to build
-    const {exitCode} = await runCLI([paths.source, '--root', paths.root])
+      await spawn(`node ./bin/docfu build --unsafe --sandbox ${sandbox} ${sourcedir}`)
+      base.sandbox = sandbox
 
-    assert.strictEqual(exitCode, 0, 'Default build should succeed')
-    assert.ok(existsSync(paths.dist), 'Should create dist directory')
-    assert.ok(existsSync(join(paths.dist, 'index.html')), 'Should generate index.html')
+      assert.equal(sandbox, base.sandbox, `Should use sandbox: ${sandbox}`)
+      assert(realpath(base.workspace), `Should create: ${base.workspace}`)
+      assert(realpath(base.dist), `Should create: ${base.dist}`)
+      assert.isUndefined(realpath(sourcedir, '.docfu'), `Should not create: ${join(sourcedir, '.docfu')}`)
 
-    const html = readFileSync(join(paths.dist, 'index.html'), 'utf-8')
-    assert.ok(html.includes('Welcome to the test documentation'), 'HTML should contain source content')
-    assert.ok(html.includes('Home'), 'HTML should contain title')
-  })
-
-  it('should build comprehensive site with all features', async () => {
-    const paths = getTestPaths('build-comprehensive', import.meta.url)
-    await createFixtures(paths, 'build-comprehensive', [
-      'docfu.yml',
-      'index.md',
-      'with-components.md',
-      'with-markdoc.md',
-      'partials/snippet.md',
-      'guides/getting-started.md',
-      'api/reference.md',
-    ])
-
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
-
-    assert.strictEqual(exitCode, 0, 'Comprehensive build should succeed')
-
-    // ========================================
-    // WORKSPACE ARTIFACTS VERIFICATION
-    // ========================================
-
-    assert.ok(existsSync(join(paths.root, 'config.yml')), 'Should create config.yml in root')
-    assert.ok(existsSync(join(paths.root, 'manifest.json')), 'Should create manifest.json in root')
-
-    const manifestPath = join(paths.root, 'manifest.json')
-    const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
-    assert.strictEqual(manifest.docs.length, 6, 'Manifest should contain all 6 pages')
-    const indexDoc = manifest.docs.find(d => d.slug === 'index' || d.slug === '')
-    assert.ok(indexDoc, 'Manifest should include index page')
-    assert.strictEqual(indexDoc.title, 'Home', 'Index should have correct title')
-    assert.ok(
-      manifest.docs.find(d => d.slug === 'with-components'),
-      'Manifest should include with-components'
-    )
-    assert.ok(
-      manifest.docs.find(d => d.title === 'Page with Components'),
-      'Manifest should extract correct title from H1'
-    )
-    assert.ok(
-      manifest.docs.find(d => d.slug === 'guides/getting-started'),
-      'Manifest should include nested pages'
-    )
-
-    const mdxPath = join(paths.workspace, 'src/content/docs/with-components.mdx')
-    assert.ok(existsSync(mdxPath), 'Should convert to .mdx')
-    const mdxContent = readFileSync(mdxPath, 'utf-8')
-    assert.ok(mdxContent.includes('import'), 'Should have import statement')
-    assert.ok(mdxContent.includes('Card'), 'Should import Card component')
-    assert.ok(mdxContent.includes('Badge'), 'Should import Badge component')
-    assert.ok(mdxContent.includes('@astrojs/starlight/components'), 'Should import from Starlight')
-    assert.ok(mdxContent.includes('---\ntitle:'), 'Should have frontmatter with title')
-    assert.ok(mdxContent.includes('title: Page with Components'), 'Should extract title from H1')
-
-    const mdocPath = join(paths.workspace, 'src/content/docs/with-markdoc.mdoc')
-    assert.ok(existsSync(mdocPath), 'Should convert to .mdoc')
-    const mdocContent = readFileSync(mdocPath, 'utf-8')
-    assert.ok(mdocContent.includes('## Important Note {% #important'), 'Should preserve heading badges')
-    assert.ok(mdocContent.includes('{% partial file='), 'Should preserve partial tag')
-    assert.ok(mdocContent.includes('title: Page with Markdoc'), 'Should have title in frontmatter')
-
-    const indexMdPath = join(paths.workspace, 'src/content/docs/index.md')
-    const indexMdContent = readFileSync(indexMdPath, 'utf-8')
-    assert.ok(indexMdContent.includes('title: Home'), 'Plain markdown should have title injected')
-    assert.ok(!indexMdContent.includes('# Home\n'), 'Should remove H1 after extracting title')
-
-    // ========================================
-    // HTML BUILD ARTIFACTS VERIFICATION
-    // ========================================
-
-    assert.ok(existsSync(join(paths.dist, 'index.html')), 'Should generate index.html')
-    assert.ok(existsSync(join(paths.dist, 'with-components/index.html')), 'Should generate with-components page')
-    assert.ok(existsSync(join(paths.dist, 'with-markdoc/index.html')), 'Should generate with-markdoc page')
-    assert.ok(existsSync(join(paths.dist, 'guides/getting-started/index.html')), 'Should generate nested guides page')
-    assert.ok(existsSync(join(paths.dist, 'api/reference/index.html')), 'Should generate nested api page')
-
-    assert.ok(existsSync(join(paths.dist, '_astro')), 'Should create _astro directory')
-    const astroFiles = readdirSync(join(paths.dist, '_astro'))
-    const cssFiles = astroFiles.filter(f => f.endsWith('.css'))
-    const jsFiles = astroFiles.filter(f => f.endsWith('.js'))
-    assert.ok(cssFiles.length > 0, 'Should generate CSS files')
-    assert.ok(jsFiles.length > 0, 'Should generate JavaScript bundles')
-    assert.ok(existsSync(join(paths.dist, '404.html')), 'Should generate 404 page')
-
-    // ========================================
-    // HTML CONTENT & STRUCTURE VERIFICATION
-    // ========================================
-
-    const indexHtml = readFileSync(join(paths.dist, 'index.html'), 'utf-8')
-
-    assert.ok(indexHtml.includes('<title>Home'), 'Should have title tag with page title')
-    assert.ok(indexHtml.includes('Test Documentation'), 'Title should include site name')
-
-    assert.ok(indexHtml.match(/<nav[^>]*>/i), 'Should have navigation element')
-    assert.ok(indexHtml.match(/<main[^>]*>/i), 'Should have main content element')
-
-    const componentsHtml = readFileSync(join(paths.dist, 'with-components/index.html'), 'utf-8')
-    assert.ok(componentsHtml.includes('Test Card'), 'Should render Card component content')
-    assert.ok(componentsHtml.includes('Success Badge'), 'Should render Badge component content')
-    assert.ok(componentsHtml.includes('This is a card component'), 'Should render card body')
-    assert.ok(componentsHtml.match(/<[^>]*class="[^"]*card/i), 'Card should render as HTML element with class')
-
-    const markdocHtml = readFileSync(join(paths.dist, 'with-markdoc/index.html'), 'utf-8')
-    assert.ok(markdocHtml.includes('id="important"'), 'Should convert heading badge ID to HTML id attribute')
-    assert.ok(markdocHtml.includes('reusable snippet from a partial'), 'Should include and render partial content')
-
-    assert.ok(
-      indexHtml.includes('Getting Started') || indexHtml.includes('getting-started'),
-      'Sidebar should include nested page from guides/'
-    )
-    assert.ok(
-      indexHtml.includes('API Reference') || indexHtml.includes('reference'),
-      'Sidebar should include nested page from api/'
-    )
-  })
+      parseHTML(base.dist, 'index.html', ({assertText}) => assertText('title', 'Home'))
+    }))
 })

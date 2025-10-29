@@ -3,105 +3,79 @@
  * Validates that the final HTML has correct hrefs
  */
 
-import {describe, it, beforeAll} from 'vitest'
-import assert from 'assert'
-import {existsSync} from 'fs'
-import {readFile} from 'fs/promises'
-import {join} from 'path'
-import {runCLI, getTestPaths, createInlineFixtures, cleanupTestFile} from '../helpers.js'
-
-beforeAll(() => cleanupTestFile(import.meta.url))
+import {describe, it} from 'vitest'
+import {createFixtures, quarantine, spawn} from '../utils.js'
+import {parseHTML} from '../parsers/html-parser.js'
+import base from '../../lib/base.js'
 
 describe('README Links in Built HTML', () => {
-  it('should build correct hrefs for README links', async () => {
-    const paths = getTestPaths('readme-html-links', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test',
-      'index.md': `---
+  it('should transform README links and build correct page URLs', async ({task}) =>
+    quarantine(task, async sourcedir => {
+      createFixtures(sourcedir, {
+        'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
+        'README.md': `---
 title: Home
 ---
+
+# Home
 
 Links to READMEs:
 - [Guides](guides/README.md)
 - [API](api/README.md)`,
-      'guides/README.md': '---\ntitle: Guides\n---\n\n# Guides',
-      'api/README.md': '---\ntitle: API\n---\n\n# API',
-    })
+        'guides/README.md': `---
+title: Guides
+---
 
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root], {
-      env: {DOCFU_ENGINE: paths.engine},
-    })
-
-    assert.strictEqual(exitCode, 0, 'Build should succeed')
-
-    const indexHtml = await readFile(join(paths.dist, 'index.html'), 'utf-8')
-
-    const hrefs = [...indexHtml.matchAll(/href="([^"]*)"/g)].map(m => m[1])
-
-    // Should have links to guides and api (not README.md)
-    const hasGuideLink = hrefs.some(href => href.includes('index.md') && href.includes('guides'))
-    const hasApiLink = hrefs.some(href => href.includes('index.md') && href.includes('api'))
-
-    assert.ok(hasGuideLink, 'Should have link to guides/index.md')
-    assert.ok(hasApiLink, 'Should have link to api/index.md')
-
-    const hasReadmeHref = hrefs.some(href => /readme\.md/i.test(href))
-    assert.ok(!hasReadmeHref, 'Should not have any README.md hrefs')
-  })
-
-  it('should build correct page URLs for renamed READMEs', async () => {
-    const paths = getTestPaths('readme-page-urls', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test',
-      'README.md': '---\ntitle: Home\n---\n\n# Home',
-      'guides/README.md': '---\ntitle: Guides\n---\n\n# Guides Landing',
-    })
-
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root], {
-      env: {DOCFU_ENGINE: paths.engine},
-    })
-
-    assert.strictEqual(exitCode, 0, 'Build should succeed')
-
-    assert.ok(existsSync(join(paths.dist, 'index.html')), 'Root README should become index.html')
-    const rootHtml = await readFile(join(paths.dist, 'index.html'), 'utf-8')
-    assert.ok(rootHtml.includes('Home'), 'Root index should have Home content')
-
-    assert.ok(existsSync(join(paths.dist, 'guides', 'index.html')), 'guides/README should become guides/index.html')
-    const guidesHtml = await readFile(join(paths.dist, 'guides/index.html'), 'utf-8')
-    assert.ok(guidesHtml.includes('>Guides<'), 'Guides index should have correct title')
-  })
-
-  it('should handle relative README links correctly in built HTML', async () => {
-    const paths = getTestPaths('readme-relative-links', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test',
-      'README.md': '---\ntitle: Home\n---\n\n# Home',
-      'guides/getting-started.md': `---
+# Guides Landing`,
+        'guides/getting-started.md': `---
 title: Getting Started
 ---
+
+# Getting Started
 
 Navigation:
 - [Home](../README.md)
 - [Guides Home](./README.md)`,
-      'guides/README.md': '---\ntitle: Guides\n---\n\n# Guides',
-    })
+        'api/README.md': `---
+title: API
+---
 
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root], {
-      env: {DOCFU_ENGINE: paths.engine},
-    })
+# API Reference`,
+      })
 
-    assert.strictEqual(exitCode, 0, 'Build should succeed')
+      await spawn(`node ./bin/docfu build --unsafe ${sourcedir}`)
+      base.source = sourcedir
 
-    const gettingStartedHtml = await readFile(join(paths.dist, 'guides/getting-started', 'index.html'), 'utf-8')
+      // Test root README becomes index.html
+      parseHTML(base.dist, 'index.html', ({assertText, assertAttr}) => {
+        assertText('main', 'Home')
+        assertText('main', 'Links to READMEs')
+        // Links should be transformed to /guides/ and /api/
+        assertAttr('a[href="/guides/"]', 'href', '/guides/')
+        assertAttr('a[href="/api/"]', 'href', '/api/')
+      })
 
-    const hrefs = [...gettingStartedHtml.matchAll(/href="([^"]*)"/g)].map(m => m[1])
+      // Test guides/README becomes guides/index.html
+      parseHTML(base.dist, 'guides', 'index.html', ({assertText}) => {
+        // When both frontmatter title and H1 exist: frontmatter wins, H1 is stripped
+        assertText('title', 'Guides')
+        assertText('h1', 'Guides')
+      })
 
-    // Should have links transformed from README.md to index.md
-    const hasIndexLinks = hrefs.some(href => href.includes('index.md'))
-    assert.ok(hasIndexLinks, 'Should have links to index.md files')
+      // Test api/README becomes api/index.html
+      parseHTML(base.dist, 'api', 'index.html', ({assertText}) => {
+        // When both frontmatter title and H1 exist: frontmatter wins, H1 is stripped
+        assertText('title', 'API')
+        assertText('h1', 'API')
+      })
 
-    const hasReadmeHref = hrefs.some(href => /readme\.md/i.test(href))
-    assert.ok(!hasReadmeHref, 'Should not have any README.md hrefs')
-  })
+      // Test relative README links are transformed correctly
+      parseHTML(base.dist, 'guides', 'getting-started', 'index.html', ({assertText, assertAttr}) => {
+        assertText('main', 'Getting Started')
+        // ../README.md should become /
+        assertAttr('a[href="/"]', 'href', '/')
+        // ./README.md should become /guides/
+        assertAttr('a[href="/guides/"]', 'href', '/guides/')
+      })
+    }))
 })

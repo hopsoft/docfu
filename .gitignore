@@ -8,6 +8,13 @@ dist/
 # Dependencies
 node_modules/
 
+# Package manager lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+bun.lock
+
 # Deploy
 .dockerignore
 Caddyfile
@@ -26,10 +33,8 @@ lerna-debug.log*
 .pnpm-debug.log*
 
 # Environment variables
-.env
-.env.local
-.env.production
-.env.*.local
+!.env*.example
+.env*
 
 # IDE and Editor folders
 .vscode/*
@@ -61,13 +66,21 @@ coverage/
 .cache/
 .parcel-cache/
 .turbo/
+.npm-cache/
+.yarn-cache/
+.pnpm-store/
+.bun-cache/
+.bun-tmp/
 
-# Temporary files
+# Other
 *.temp
 *.tmp
+.npmrc
 .temp/
-.tmp/
-test/temp*
-
-# Debug
+.test*
+.tmp
+.yarn/
+.yarnrc.yml
+bunfig.toml
 debug.log*
+tmp/

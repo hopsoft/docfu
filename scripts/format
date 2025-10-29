@@ -1,0 +1,21 @@
+#!/usr/bin/env node
+
+import '../lib/logger.js'
+import {pm} from '../lib/package-manager.js'
+
+await pm.run('markdown-toc -i --maxdepth 2 README.md')
+await pm.run(
+  'prettier',
+  '--log-level silent',
+  '--write',
+  '*.js',
+  '*.json',
+  '*.md',
+  '*.mjs',
+  './bin',
+  './lib',
+  './public/**/*.js',
+  './scripts',
+  './src',
+  './test'
+)
