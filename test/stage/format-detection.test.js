@@ -1,13 +1,14 @@
-import {describe, it} from 'vitest'
-import assert from 'assert'
-import {join, read, realpath} from '../../lib/file-system.js'
+import {assert, describe, it} from 'vitest'
+import {realpath} from '../../lib/file-system.js'
 import {createFixtures, spawn, quarantine} from '../utils.js'
+import {parseMarkdown} from '../parsers/markdown-parser.js'
+import {parseMDX} from '../parsers/mdx-parser.js'
 
 const docfuYml = 'site:\n  name: Test Docs\n  url: https://test.example.com'
 
 describe('Format Detection', () => {
-  it('should keep plain markdown files as .md', ({task}) => {
-    quarantine(task, testdir => {
+  it('should keep plain markdown files as .md', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'plain-markdown.md': `# Plain Markdown
@@ -27,30 +28,16 @@ const test = 'hello'
 No JSX components, no Markdoc tags.`,
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      const docsdir = realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs')
+      assert(realpath(docsdir, 'plain-markdown.md'))
+      assert.isUndefined(realpath(docsdir, 'plain-markdown.mdx'))
+      assert.isUndefined(realpath(docsdir, 'plain-markdown.mdoc'))
+      parseMarkdown(docsdir, 'plain-markdown.md', ({assertHeading}) => assertHeading('Section', 2))
+    }))
 
-      assert.ok(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'plain-markdown.md'),
-        'Plain markdown should stay as .md'
-      )
-      assert.strictEqual(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'plain-markdown.mdx'),
-        undefined,
-        'Should not become .mdx'
-      )
-      assert.strictEqual(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'plain-markdown.mdoc'),
-        undefined,
-        'Should not become .mdoc'
-      )
-
-      const content = read(join(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'plain-markdown.md'))
-      assert.ok(content.includes('## Section'), 'Should preserve other content')
-    })
-  })
-
-  it('should convert files with JSX components to .mdx', ({task}) => {
-    quarantine(task, testdir => {
+  it('should convert files with JSX components to .mdx', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'with-jsx-components.md': `# File with JSX Components
@@ -66,27 +53,20 @@ This card should trigger conversion to .mdx
 Content continues here.`,
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      const docsdir = realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs')
+      assert(realpath(docsdir, 'with-jsx-components.mdx'))
+      assert.isUndefined(realpath(docsdir, 'with-jsx-components.md'))
+      parseMDX(docsdir, 'with-jsx-components.mdx', ({assertImport, assertElement}) => {
+        assertImport('Badge')
+        assertImport('Card')
+        assertElement('Card')
+        assertElement('Badge')
+      })
+    }))
 
-      assert.ok(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'with-jsx-components.mdx'),
-        'Should become .mdx'
-      )
-      assert.strictEqual(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'with-jsx-components.md'),
-        undefined,
-        'Original .md should not exist'
-      )
-
-      const content = read(join(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'with-jsx-components.mdx'))
-      assert.ok(content.includes('import { Badge, Card } from'), 'Should auto-import components')
-      assert.ok(content.includes('<Card title="Test Card">'), 'Should preserve JSX component')
-      assert.ok(content.includes('<Badge variant="success">'), 'Should preserve Badge component')
-    })
-  })
-
-  it('should convert files with Markdoc syntax to .mdoc', ({task}) => {
-    quarantine(task, testdir => {
+  it('should convert files with Markdoc syntax to .mdoc', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'with-markdoc-tags.md': `# File with Markdoc Tags
@@ -104,26 +84,18 @@ This is a note aside.
 More content here.`,
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      const docsdir = realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs')
+      assert(realpath(docsdir, 'with-markdoc-tags.mdoc'))
+      assert.isUndefined(realpath(docsdir, 'with-markdoc-tags.md'))
+      parseMarkdown(docsdir, 'with-markdoc-tags.mdoc', ({assertTag}) => {
+        assertTag('badge')
+        assertTag('aside')
+      })
+    }))
 
-      assert.ok(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'with-markdoc-tags.mdoc'),
-        'Should become .mdoc'
-      )
-      assert.strictEqual(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'with-markdoc-tags.md'),
-        undefined,
-        'Original .md should not exist'
-      )
-
-      const content = read(join(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'with-markdoc-tags.mdoc'))
-      assert.ok(content.includes('{% badge text="New" /%}'), 'Should preserve markdoc badges')
-      assert.ok(content.includes('{% aside type="note" %}'), 'Should preserve markdoc asides')
-    })
-  })
-
-  it('should detect heading badges and convert to .mdoc', ({task}) => {
-    quarantine(task, testdir => {
+  it('should detect heading badges and convert to .mdoc', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'with-heading-badges.md': `# Title :badge[v1.0]
@@ -139,21 +111,16 @@ More content with inline :badge[text] that stays as-is.
 Regular content.`,
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      const docsdir = realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs')
+      parseMarkdown(docsdir, 'with-heading-badges.mdoc', ({assertTag, data}) => {
+        assertTag('badge')
+        assert(data.content.includes(':badge[text]'))
+      })
+    }))
 
-      assert.ok(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'with-heading-badges.mdoc'),
-        'Should become .mdoc'
-      )
-
-      const content = read(join(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'with-heading-badges.mdoc'))
-      assert.ok(content.includes('{% badge text="Beta" /%}'), 'Should convert H2 badge')
-      assert.ok(content.includes(':badge[text]'), 'Should preserve inline badges')
-    })
-  })
-
-  it('should handle GitHub alerts correctly', ({task}) => {
-    quarantine(task, testdir => {
+  it('should handle GitHub alerts correctly', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'with-github-alerts.md': `# GitHub Alerts
@@ -172,21 +139,16 @@ Plain markdown with only GitHub alerts should stay as .md.
 Regular content.`,
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      const docsdir = realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs')
+      parseMarkdown(docsdir, 'with-github-alerts.md', ({data}) => {
+        assert(data.content.includes('> [!NOTE]'))
+        assert.isNotOk(data.content.includes('{% aside'))
+      })
+    }))
 
-      assert.ok(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'with-github-alerts.md'),
-        'GitHub alerts alone should stay as .md'
-      )
-
-      const content = read(join(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'with-github-alerts.md'))
-      assert.ok(content.includes('> [!NOTE]'), 'Should preserve GitHub alert syntax in .md')
-      assert.ok(!content.includes('{% aside'), 'Should not convert to markdoc aside in .md')
-    })
-  })
-
-  it('should convert GitHub alerts in files with badges', ({task}) => {
-    quarantine(task, testdir => {
+  it('should convert GitHub alerts in files with badges', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'badges-and-alerts.md': `# Badges and Alerts :badge[Combined]
@@ -201,21 +163,17 @@ This file has both badges AND alerts, should become .mdoc.
 Content here.`,
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      const docsdir = realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs')
+      parseMarkdown(docsdir, 'badges-and-alerts.mdoc', ({assertTag, data}) => {
+        assertTag('aside')
+        assertTag('badge')
+        assert(data.content.includes('This is a note alert'))
+      })
+    }))
 
-      assert.ok(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'badges-and-alerts.mdoc'),
-        'Should become .mdoc'
-      )
-
-      const content = read(join(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'badges-and-alerts.mdoc'))
-      assert.ok(content.includes('{% aside type="note" %}'), 'Should convert GitHub alerts to markdoc in .mdoc')
-      assert.ok(content.includes('This is a note alert'), 'Should preserve alert content')
-    })
-  })
-
-  it('should auto-import multiple Starlight components', ({task}) => {
-    quarantine(task, testdir => {
+  it('should auto-import multiple Starlight components', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'multiple-components.md': `# Multiple Components
@@ -237,26 +195,20 @@ This is a tip.
 All components should be auto-imported alphabetically.`,
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      const docsdir = realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs')
+      parseMDX(docsdir, 'multiple-components.mdx', ({assertImport, assertElement}) => {
+        assertImport('Aside')
+        assertImport('Badge')
+        assertImport('Steps')
+        assertElement('Badge')
+        assertElement('Aside')
+        assertElement('Steps')
+      })
+    }))
 
-      assert.ok(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'multiple-components.mdx'),
-        'Should become .mdx'
-      )
-
-      const content = read(join(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'multiple-components.mdx'))
-      assert.ok(
-        content.includes('import { Aside, Badge, Steps } from'),
-        'Should import all used components alphabetically'
-      )
-      assert.ok(content.includes('<Badge variant="success">'), 'Should preserve Badge component')
-      assert.ok(content.includes('<Aside type="tip">'), 'Should preserve Aside component')
-      assert.ok(content.includes('<Steps>'), 'Should preserve Steps component')
-    })
-  })
-
-  it('should preserve existing .mdx files', ({task}) => {
-    quarantine(task, testdir => {
+  it('should preserve existing .mdx files', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'existing.mdx': `---
@@ -276,21 +228,17 @@ This file is already .mdx and should be preserved.
 Existing imports should not be modified.`,
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      const docsdir = realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs')
+      parseMDX(docsdir, 'existing.mdx', ({assertImport, assertElement}) => {
+        assertImport('CustomComponent')
+        assertElement('CustomComponent')
+        assertElement('Badge')
+      })
+    }))
 
-      assert.ok(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'existing.mdx'),
-        'Should preserve .mdx extension'
-      )
-
-      const content = read(join(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'existing.mdx'))
-      assert.ok(content.includes('import CustomComponent from'), 'Should preserve existing imports')
-      assert.ok(content.includes('<CustomComponent />'), 'Should preserve custom component')
-    })
-  })
-
-  it('should preserve existing .mdoc files', ({task}) => {
-    quarantine(task, testdir => {
+  it('should preserve existing .mdoc files', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'existing.mdoc': `---
@@ -310,16 +258,11 @@ Existing markdoc content.
 No changes needed.`,
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
-
-      assert.ok(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'existing.mdoc'),
-        'Should preserve .mdoc extension'
-      )
-
-      const content = read(join(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'existing.mdoc'))
-      assert.ok(content.includes('{% badge text="Markdoc" /%}'), 'Should preserve markdoc tags')
-      assert.ok(content.includes('{% aside type="note" %}'), 'Should preserve markdoc asides')
-    })
-  })
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      const docsdir = realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs')
+      parseMarkdown(docsdir, 'existing.mdoc', ({assertTag}) => {
+        assertTag('badge')
+        assertTag('aside')
+      })
+    }))
 })

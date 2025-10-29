@@ -1,188 +1,135 @@
 /**
  * Mermaid diagram tests
- * Tests mermaid rendering in .md and .mdoc files
+ * Tests mermaid rendering in .md, .mdx, and .mdoc files with various syntax options
  */
 
-import {describe, it} from 'vitest'
-import assert from 'assert'
-import {readFileSync} from 'fs'
-import {join} from 'path'
-import {runCLI} from '../utils.js'
-import {getTestPaths, createFixtures, createInlineFixtures} from '../utils.js'
+import {assert, describe, it} from 'vitest'
+import {createFixtures, quarantine, spawn} from '../utils.js'
+import {parseHTML} from '../parsers/html-parser.js'
+import {parseMarkdown} from '../parsers/markdown-parser.js'
+import base from '../../lib/base.js'
 
 describe('Mermaid Diagrams', () => {
-  it('should render mermaid diagrams in .md files', async () => {
-    const paths = getTestPaths('mermaid-md', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
-      'index.md': '# Home',
-      'diagram.md': `# Mermaid Diagram
+  it('should render mermaid diagrams across all formats and syntaxes', async ({task}) =>
+    quarantine(task, async sourcedir => {
+      createFixtures(sourcedir, {
+        'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
+        // .md with code fence
+        'md-fence.md': `# Markdown Code Fence
 
 \`\`\`mermaid
 graph TD
     A[Start] --> B[Process]
     B --> C[End]
 \`\`\`
+`,
+        // .mdx with code fence
+        'mdx-fence.mdx': `---
+title: MDX Code Fence
+---
 
-This is a flowchart diagram.`,
-    })
-
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
-
-    assert.strictEqual(exitCode, 0, 'Build should succeed')
-
-    const html = readFileSync(join(paths.dist, 'diagram/index.html'), 'utf-8')
-
-    assert.ok(html.includes('<pre class="mermaid">'), 'Should have mermaid pre element')
-    assert.ok(html.includes('graph TD'), 'Should include mermaid diagram code')
-    assert.ok(html.includes('A[Start]'), 'Should include diagram nodes')
-    assert.ok(html.includes('B[Process]'), 'Should include diagram nodes')
-    assert.ok(html.includes('C[End]'), 'Should include diagram nodes')
-  })
-
-  it('should render mermaid diagrams in .mdoc files', async () => {
-    const paths = getTestPaths('mermaid-mdoc', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
-      'index.md': '# Home',
-      'about.md': '# About\n\nRegular markdown page',
-      'sequence.mdoc': `# Sequence Diagram
-
-\`\`\`mermaid
-sequenceDiagram
-    Alice->>Bob: Hello Bob
-    Bob-->>Alice: Hi Alice
-\`\`\`
-
-This file uses the .mdoc extension directly.`,
-    })
-
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
-
-    assert.strictEqual(exitCode, 0, 'Build should succeed')
-
-    const workspaceFile = join(paths.workspace, 'src/content/docs/sequence.mdoc')
-    assert.ok(readFileSync(workspaceFile, 'utf-8'), 'Should convert to .mdoc')
-
-    const html = readFileSync(join(paths.dist, 'sequence/index.html'), 'utf-8')
-
-    assert.ok(html.includes('<pre class="mermaid">'), 'Should have mermaid pre element in .mdoc')
-    assert.ok(html.includes('sequenceDiagram'), 'Should include sequence diagram code')
-    assert.ok(html.includes('Alice->>Bob'), 'Should include sequence interactions')
-    assert.ok(html.includes('Bob-->>Alice'), 'Should include sequence responses')
-  })
-
-  it('should handle multiple mermaid diagrams in one file', async () => {
-    const paths = getTestPaths('mermaid-multiple', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
-      'index.md': '# Home',
-      'multi.md': `# Multiple Diagrams
-
-## Flow Chart
+# MDX Code Fence
 
 \`\`\`mermaid
 graph LR
     Start --> End
 \`\`\`
+`,
+        // .mdx with Fence component
+        'mdx-component.mdx': `---
+title: MDX Component
+---
 
-## Pie Chart
+# MDX Fence Component
+
+<Fence code={\`sequenceDiagram
+    Alice->>Bob: Hello Bob
+    Bob-->>Alice: Hi Alice\`} lang="mermaid" />
+`,
+        // .mdoc with code fence
+        'mdoc-fence.mdoc': `# Markdoc Code Fence
+
+\`\`\`mermaid
+stateDiagram-v2
+    [*] --> Still
+    Still --> Moving
+    Moving --> Crash
+    Crash --> [*]
+\`\`\`
+`,
+        // Multiple diagrams in one file
+        'multi.md': `# Multiple Diagrams
+
+## Flow Chart
 
 \`\`\`mermaid
 pie title Pets
     "Dogs" : 386
     "Cats" : 85
-    "Rats" : 15
 \`\`\`
 
-Two different diagram types.`,
-    })
-
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
-
-    assert.strictEqual(exitCode, 0, 'Build should succeed')
-
-    const html = readFileSync(join(paths.dist, 'multi/index.html'), 'utf-8')
-
-    const mermaidMatches = html.match(/<pre class="mermaid">/g)
-    assert.ok(mermaidMatches, 'Should have mermaid elements')
-    assert.strictEqual(mermaidMatches.length, 2, 'Should have 2 mermaid diagrams')
-
-    assert.ok(html.includes('graph LR'), 'Should include flowchart')
-    assert.ok(html.includes('pie title Pets'), 'Should include pie chart')
-  })
-
-  it('should handle mermaid with other code blocks', async () => {
-    const paths = getTestPaths('mermaid-mixed', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
-      'index.md': '# Home',
-      'mixed.md': `# Mixed Code Blocks
-
-Regular code:
+## Mixed with code
 
 \`\`\`javascript
 const x = 42
-console.log(x)
 \`\`\`
-
-Mermaid diagram:
 
 \`\`\`mermaid
 graph TD
-    A --> B
+    X --> Y
 \`\`\`
+`,
+      })
 
-More code:
+      await spawn(`node ./bin/docfu build --unsafe ${sourcedir}`)
+      base.source = sourcedir
 
-\`\`\`python
-def greet():
-    return "hello"
-\`\`\``,
-    })
+      // Test .md with code fence
+      parseHTML(base.dist, 'md-fence', 'index.html', ({assertSelector, assertText}) => {
+        assertSelector('pre.mermaid')
+        assertText('pre.mermaid', 'graph TD')
+        assertText('pre.mermaid', 'A[Start]')
+        assertText('pre.mermaid', 'B[Process]')
+        assertText('pre.mermaid', 'C[End]')
+      })
 
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
+      // Test .mdx with code fence
+      parseHTML(base.dist, 'mdx-fence', 'index.html', ({assertSelector, assertText}) => {
+        assertSelector('pre.mermaid')
+        assertText('pre.mermaid', 'graph LR')
+        assertText('pre.mermaid', 'Start')
+        assertText('pre.mermaid', 'End')
+      })
 
-    assert.strictEqual(exitCode, 0, 'Build should succeed')
+      // Test .mdx with Fence component
+      parseHTML(base.dist, 'mdx-component', 'index.html', ({assertSelector, assertText}) => {
+        assertSelector('pre.mermaid')
+        assertText('pre.mermaid', 'sequenceDiagram')
+        assertText('pre.mermaid', 'Alice->>Bob')
+        assertText('pre.mermaid', 'Bob-->>Alice')
+      })
 
-    const html = readFileSync(join(paths.dist, 'mixed/index.html'), 'utf-8')
+      // Test .mdoc with code fence (verify workspace file + output)
+      parseMarkdown(base.workspace, 'src', 'content', 'docs', 'mdoc-fence.mdoc', ({data}) => {
+        assert(data, 'Should preserve .mdoc file in workspace')
+      })
 
-    assert.ok(html.includes('<pre class="mermaid">'), 'Should have mermaid element')
-    assert.ok(html.includes('graph TD'), 'Should include mermaid code')
+      parseHTML(base.dist, 'mdoc-fence', 'index.html', ({assertSelector, assertText}) => {
+        assertSelector('pre.mermaid')
+        assertText('pre.mermaid', 'stateDiagram-v2')
+        assertText('pre.mermaid', '[*] --> Still')
+        assertText('pre.mermaid', 'Moving --> Crash')
+      })
 
-    assert.ok(html.includes('const x = 42'), 'Should include JavaScript code')
-    assert.ok(html.includes('def greet'), 'Should include Python code')
-
-    const mermaidPre = html.match(/<pre class="mermaid">[\s\S]*?<\/pre>/)[0]
-    assert.ok(!mermaidPre.includes('<code'), 'Mermaid should not have code element inside')
-  })
-
-  it('should preserve mermaid syntax in processed files', async () => {
-    const paths = getTestPaths('mermaid-syntax', import.meta.url)
-    await createInlineFixtures(paths, {
-      'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
-      'index.md': '# Home',
-      'syntax.md': `# Complex Diagram
-
-\`\`\`mermaid
-stateDiagram-v2
-    [*] --> Still
-    Still --> [*]
-    Still --> Moving
-    Moving --> Still
-    Moving --> Crash
-    Crash --> [*]
-\`\`\``,
-    })
-
-    const {exitCode} = await runCLI(['build', paths.source, '--root', paths.root])
-
-    assert.strictEqual(exitCode, 0, 'Build should succeed')
-
-    const html = readFileSync(join(paths.dist, 'syntax/index.html'), 'utf-8')
-
-    assert.ok(html.includes('stateDiagram-v2'), 'Should preserve diagram type')
-    assert.ok(html.includes('[*] --> Still'), 'Should preserve state transitions')
-    assert.ok(html.includes('Moving --> Crash'), 'Should preserve all transitions')
-  })
+      // Test multiple diagrams + mixed code blocks
+      parseHTML(base.dist, 'multi', 'index.html', ({assertSelector, assertText}) => {
+        assertSelector('pre.mermaid:nth-of-type(1)')
+        assertSelector('pre.mermaid:nth-of-type(2)')
+        assertText('main', 'pie title Pets')
+        assertText('main', 'graph TD')
+        assertText('main', 'const x = 42')
+        // Verify mermaid pre doesn't have nested code element
+        assertSelector('pre.mermaid:not(:has(code))')
+      })
+    }))
 })

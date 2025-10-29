@@ -1,6 +1,5 @@
-import {describe, it} from 'vitest'
-import assert from 'assert'
-import {join, realpath, walk} from '../../lib/file-system.js'
+import {assert, describe, it} from 'vitest'
+import {join, realpath, glob} from '../../lib/file-system.js'
 import {createFixtures, spawn, quarantine} from '../utils.js'
 
 const doccfuYml = `site:
@@ -17,8 +16,8 @@ exclude:
   - specific-file.md`
 
 describe('Exclude Patterns', () => {
-  it('should exclude files matching directory patterns', ({task}) => {
-    quarantine(task, testdir => {
+  it('should exclude files matching directory patterns', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': doccfuYml,
         'index.md': '# Home',
@@ -27,32 +26,15 @@ describe('Exclude Patterns', () => {
         'internal/secret.md': '# Internal',
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      assert(realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'index.md'))
+      assert.isUndefined(realpath(testdir, '.docfu', 'workspace', 'drafts'))
+      assert.isUndefined(realpath(testdir, '.docfu', 'workspace', 'archive'))
+      assert.isUndefined(realpath(testdir, '.docfu', 'workspace', 'internal'))
+    }))
 
-      assert.ok(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'index.md'),
-        'index.md should be included'
-      )
-      assert.strictEqual(
-        realpath(testdir, '.docfu', 'workspace', 'drafts'),
-        undefined,
-        'drafts directory should not exist'
-      )
-      assert.strictEqual(
-        realpath(testdir, '.docfu', 'workspace', 'archive'),
-        undefined,
-        'archive directory should not exist'
-      )
-      assert.strictEqual(
-        realpath(testdir, '.docfu', 'workspace', 'internal'),
-        undefined,
-        'internal directory should not exist'
-      )
-    })
-  })
-
-  it('should exclude files matching specific file patterns', ({task}) => {
-    quarantine(task, testdir => {
+  it('should exclude files matching specific file patterns', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': doccfuYml,
         'index.md': '# Home',
@@ -60,26 +42,14 @@ describe('Exclude Patterns', () => {
         'specific-file.md': '# Specific',
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      assert(realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'index.md'))
+      assert(realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'regular.md'))
+      assert.isUndefined(realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'specific-file.md'))
+    }))
 
-      assert.ok(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'index.md'),
-        'index.md should be included'
-      )
-      assert.ok(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'regular.md'),
-        'regular.md should be included'
-      )
-      assert.strictEqual(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'specific-file.md'),
-        undefined,
-        'specific-file.md should be excluded'
-      )
-    })
-  })
-
-  it('should exclude files matching glob patterns with suffix', ({task}) => {
-    quarantine(task, testdir => {
+  it('should exclude files matching glob patterns with suffix', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': doccfuYml,
         'index.md': '# Home',
@@ -87,26 +57,14 @@ describe('Exclude Patterns', () => {
         'feature-draft.md': '# Feature Draft',
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      assert(realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'index.md'))
+      assert(realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'regular.md'))
+      assert.isUndefined(realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'feature-draft.md'))
+    }))
 
-      assert.ok(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'index.md'),
-        'index.md should be included'
-      )
-      assert.ok(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'regular.md'),
-        'regular.md should be included'
-      )
-      assert.strictEqual(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'feature-draft.md'),
-        undefined,
-        'feature-draft.md should be excluded'
-      )
-    })
-  })
-
-  it('should exclude files matching glob patterns with extension', ({task}) => {
-    quarantine(task, testdir => {
+  it('should exclude files matching glob patterns with extension', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': doccfuYml,
         'index.md': '# Home',
@@ -114,44 +72,27 @@ describe('Exclude Patterns', () => {
         'backup.tmp.md': '# Backup',
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      assert(realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'index.md'))
+      assert(realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'regular.md'))
+      assert.isUndefined(realpath(testdir, '.docfu', 'workspace', 'backup.tmp.md'))
+    }))
 
-      assert.ok(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'index.md'),
-        'index.md should be included'
-      )
-      assert.ok(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'regular.md'),
-        'regular.md should be included'
-      )
-      assert.strictEqual(
-        realpath(testdir, '.docfu', 'workspace', 'backup.tmp.md'),
-        undefined,
-        'backup.tmp.md should be excluded'
-      )
-    })
-  })
-
-  it('should exclude directories matching glob patterns with prefix', ({task}) => {
-    quarantine(task, testdir => {
+  it('should exclude directories matching glob patterns with prefix', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': doccfuYml,
         'index.md': '# Home',
         'temp-dir/file.md': '# Temp',
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      assert(realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'index.md'))
+      assert.isUndefined(realpath(testdir, '.docfu', 'workspace', 'temp-dir'))
+    }))
 
-      assert.ok(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'index.md'),
-        'index.md should be included'
-      )
-      assert.strictEqual(realpath(testdir, '.docfu', 'workspace', 'temp-dir'), undefined, 'temp-dir should be excluded')
-    })
-  })
-
-  it('should handle mixed included and excluded files correctly', ({task}) => {
-    quarantine(task, testdir => {
+  it('should handle mixed included and excluded files correctly', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': doccfuYml,
         'index.md': '# Home',
@@ -163,20 +104,11 @@ describe('Exclude Patterns', () => {
         'archive/old.md': '# Archive',
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
-
+      await spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
       const docs = join(testdir, '.docfu', 'workspace', 'src', 'content', 'docs')
-      const mdFiles = walk(docs, f => f.endsWith('.md'))
-
-      assert.ok(
-        mdFiles.some(f => f.endsWith('index.md')),
-        'Should include index.md'
-      )
-      assert.ok(
-        mdFiles.some(f => f.endsWith('regular.md')),
-        'Should include regular.md'
-      )
-      assert.strictEqual(mdFiles.length, 2, 'Should only have 2 markdown files')
-    })
-  })
+      const mdFiles = glob('**/*.md', docs)
+      assert(mdFiles.some(f => f.endsWith('index.md')))
+      assert(mdFiles.some(f => f.endsWith('regular.md')))
+      assert.equal(mdFiles.length, 2)
+    }))
 })

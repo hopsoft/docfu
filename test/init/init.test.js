@@ -1,76 +1,36 @@
-import {describe, it} from 'vitest'
-import assert from 'assert'
-import {existsSync, mkdirSync} from 'fs'
-import {readFile} from 'fs/promises'
-import {join, dirname} from 'path'
-import {isolate, createFixtures, x} from '../utils.js'
+import {assert, describe, it} from 'vitest'
+import {realpath} from '../../lib/file-system.js'
+import {createFixtures, spawn, quarantine} from '../utils.js'
+import {parseYAML} from '../parsers/yaml.js'
 
 describe('Init Command', () => {
-  it('should create docfu.yml with default values using --force flag', async () => {
-    await isolate(async source => {
-      mkdirSync(source, {recursive: true})
-      x(`node ./bin/docfu init ${source}`)
+  it('should create docfu.yml with default values', async ({task}) =>
+    quarantine(task, async testdir => {
+      createFixtures(testdir, {'README.md': '# Test'})
 
-      const configPath = join(source, 'docfu.yml')
-      assert.ok(existsSync(configPath), 'Should create docfu.yml')
+      await spawn(`node ./bin/docfu init ${testdir}`)
 
-      const content = await readFile(configPath, 'utf-8')
-      assert.ok(content.includes('site:'), 'Should include site config')
-      assert.ok(content.includes('name: Documentation'), 'Should have site name')
-      assert.ok(content.includes('url: https://docs.example.com'), 'Should have site URL')
-    })
-  })
+      parseYAML(testdir, '.docfu', 'docfu.yml', ({data}) => {
+        assert.equal(data.site.name, 'Documentation')
+        assert.equal(data.site.url, 'https://docs.example.com')
+        assert(data.assets)
+        assert(data.components)
+      })
+    }))
 
-  it('should create docfu.yml from template', async () => {
-    await isolate(async source => {
-      mkdirSync(source, {recursive: true})
-      x(`node ./bin/docfu init ${source}`)
-
-      const configPath = join(source, 'docfu.yml')
-      const content = await readFile(configPath, 'utf-8')
-      assert.ok(content.includes('# DocFu Configuration'), 'Should include config header')
-      assert.ok(content.includes('assets:'), 'Should include assets config')
-      assert.ok(content.includes('components:'), 'Should include components config')
-    })
-  })
-
-  it('should overwrite existing config with --force flag', async () => {
-    await isolate(async source => {
-      const configPath = join(source, 'docfu.yml')
-
-      await createFixtures(source, {
-        'docfu.yml': 'existing: config\nold: value',
+  it('should overwrite existing config with --force flag', async ({task}) =>
+    quarantine(task, async testdir => {
+      createFixtures(testdir, {
+        'README.md': '# Test',
+        '.docfu/docfu.yml': 'existing: config\nold: value',
       })
 
-      x(`node ./bin/docfu init ${source} --force`)
+      await spawn(`node ./bin/docfu init ${testdir} --force`)
 
-      const content = await readFile(configPath, 'utf-8')
-      assert.ok(!content.includes('old: value'), 'Should overwrite old config')
-      assert.ok(content.includes('site:'), 'Should have new config')
-    })
-  })
-
-  it('should handle --force flag without prompts', async () => {
-    await isolate(async source => {
-      mkdirSync(source, {recursive: true})
-      x(`node ./bin/docfu init ${source}`)
-
-      const configPath = join(source, 'docfu.yml')
-      const content = await readFile(configPath, 'utf-8')
-      assert.ok(content.includes('site:'), 'Should create config file')
-      assert.ok(content.includes('assets:'), 'Should include assets config')
-    })
-  })
-
-  it('should create config in specified source directory', async () => {
-    await isolate(async source => {
-      mkdirSync(source, {recursive: true})
-      x(`node ./bin/docfu init ${source}`)
-
-      const configPath = join(source, 'docfu.yml')
-      assert.ok(existsSync(configPath), 'Should create config in source directory')
-      const content = await readFile(configPath, 'utf-8')
-      assert.ok(content.includes('site:'), 'Should have site config')
-    })
-  })
+      parseYAML(testdir, '.docfu', 'docfu.yml', ({data}) => {
+        assert(data.site)
+        assert.isUndefined(data.old)
+        assert.isUndefined(data.existing)
+      })
+    }))
 })

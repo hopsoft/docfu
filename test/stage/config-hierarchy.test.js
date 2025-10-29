@@ -1,11 +1,12 @@
-import {describe, it} from 'vitest'
-import assert from 'assert'
-import {join, read, realpath} from '../../lib/file-system.js'
+import {assert, describe, it} from 'vitest'
+import {realpath} from '../../lib/file-system.js'
 import {createFixtures, spawn, quarantine} from '../utils.js'
+import {parseYAML} from '../parsers/yaml-parser.js'
+import {parseMarkdown} from '../parsers/markdown-parser.js'
 
 describe('Configuration Hierarchy', () => {
-  it('should merge multiple docfu.yml files', ({task}) => {
-    quarantine(task, testdir => {
+  it('should merge multiple docfu.yml files', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': 'site:\n  name: Main Site\n  url: https://example.com\nexclude:\n  - drafts',
         'index.md': '# Home',
@@ -14,16 +15,15 @@ describe('Configuration Hierarchy', () => {
         'guides/temp.md': '# Temp',
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      parseYAML(testdir, '.docfu', 'config.yml', ({data}) => {
+        assert(data?.site?.name === 'Main Site')
+        assert(data?.exclude?.includes('drafts') || data?.exclude?.includes('temp.md'))
+      })
+    }))
 
-      const config = read(join(testdir, '.docfu', 'config.yml'))
-      assert.ok(config.includes('Main Site'), 'Should have site config from root')
-      assert.ok(config.includes('drafts') || config.includes('temp.md'), 'Should merge exclude patterns')
-    })
-  })
-
-  it('should inherit site config from root only', ({task}) => {
-    quarantine(task, testdir => {
+  it('should inherit site config from root only', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': 'site:\n  name: Docs\n  url: https://docs.com',
         'index.md': '# Home',
@@ -31,16 +31,15 @@ describe('Configuration Hierarchy', () => {
         'api/reference.md': '# API',
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      parseYAML(testdir, '.docfu', 'config.yml', ({data}) => {
+        assert(data.site.name === 'Docs')
+        assert(data.site.name !== 'API Docs')
+      })
+    }))
 
-      const config = read(join(testdir, '.docfu', 'config.yml'))
-      assert.ok(config.includes('name: Docs'), 'Should use root site config')
-      assert.ok(!config.includes('API Docs'), 'Should not use subdirectory site config')
-    })
-  })
-
-  it('should handle exclude patterns at different levels', ({task}) => {
-    quarantine(task, testdir => {
+  it('should handle exclude patterns at different levels', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': 'site:\n  name: Test\n  url: https://test.com\nexclude:\n  - drafts',
         'index.md': '# Home',
@@ -50,27 +49,15 @@ describe('Configuration Hierarchy', () => {
         'guides/notes.tmp.md': '# Temp Notes',
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      const docsdir = realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs')
+      assert.isUndefined(realpath(docsdir, 'drafts'))
+      assert(realpath(docsdir, 'guides', 'guide.md'))
+      assert.isUndefined(realpath(docsdir, 'guides', 'notes.tmp.md'))
+    }))
 
-      assert.strictEqual(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'drafts'),
-        undefined,
-        'Should exclude drafts directory'
-      )
-      assert.ok(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'guides', 'guide.md'),
-        'Should include guide'
-      )
-      assert.strictEqual(
-        realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'guides', 'notes.tmp.md'),
-        undefined,
-        'Should exclude .tmp.md files'
-      )
-    })
-  })
-
-  it('should support frontmatter defaults in config', ({task}) => {
-    quarantine(task, testdir => {
+  it('should support frontmatter defaults in config', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
         'index.md': '# Home',
@@ -78,16 +65,15 @@ describe('Configuration Hierarchy', () => {
         'api/reference.md': '# API Reference\n\nContent',
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      parseMarkdown(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'api', 'reference.md', ({data}) => {
+        assert(data.content.includes('sidebar:'))
+        assert(data.content.includes('badge:'))
+      })
+    }))
 
-      const processed = read(join(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'api', 'reference.md'))
-      assert.ok(processed.includes('sidebar:'), 'Should apply frontmatter defaults')
-      assert.ok(processed.includes('badge:'), 'Should include badge configuration')
-    })
-  })
-
-  it('should handle file-specific config in docfu.yml', ({task}) => {
-    quarantine(task, testdir => {
+  it('should handle file-specific config in docfu.yml', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': `site:
   name: Test
@@ -101,19 +87,19 @@ describe('Configuration Hierarchy', () => {
         'other.md': '# Other\n\nContent',
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      const indexPath = realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'index.md')
+      parseMarkdown(indexPath, ({data}) => {
+        assert(data.content.includes('Custom Home Title'))
+        assert(data.content.includes('Custom description'))
+      })
 
-      const index = read(join(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'index.md'))
-      assert.ok(index.includes('Custom Home Title'), 'Should apply file-specific title')
-      assert.ok(index.includes('Custom description'), 'Should apply file-specific description')
+      const otherPath = realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'other.md')
+      parseMarkdown(otherPath, ({data}) => assert(data.content.includes('title: Other')))
+    }))
 
-      const other = read(join(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'other.md'))
-      assert.ok(other.includes('title: Other'), 'Other file should use default title from H1')
-    })
-  })
-
-  it('should handle missing site config gracefully', ({task}) => {
-    quarantine(task, testdir => {
+  it('should handle missing site config gracefully', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': 'exclude:\n  - drafts',
         'index.md': '# Home',
@@ -122,25 +108,18 @@ describe('Configuration Hierarchy', () => {
       let exitCode = 0
       let stderr = ''
       try {
-        spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
+        await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
       } catch (error) {
         exitCode = error.status
         stderr = error.stderr?.toString() || ''
       }
 
-      if (exitCode !== 0) {
-        assert.ok(stderr.includes('site') || stderr.includes('required'), 'Should mention missing site config')
-      } else {
-        assert.ok(
-          realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'index.md'),
-          'Should process files even without full config'
-        )
-      }
-    })
-  })
+      if (exitCode !== 0) assert(stderr.includes('site') || stderr.includes('required'))
+      else assert(realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'index.md'))
+    }))
 
-  it('should preserve user-defined frontmatter without overwriting', ({task}) => {
-    quarantine(task, testdir => {
+  it('should preserve user-defined frontmatter without overwriting', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': 'site:\n  name: Test\n  url: https://test.com',
         'guide.md': `---
@@ -155,21 +134,15 @@ author: Jane Doe
 Content here.`,
       })
 
-      spawn(`node ./bin/docfu stage --unsafe --sandbox ${join(testdir, '.docfu')} ${testdir}`)
-
-      const processed = read(join(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'guide.md'))
-
-      // Verify user-defined frontmatter is preserved
-      assert.ok(processed.includes('title: User Defined Title'), 'Should preserve user-defined title')
-      assert.ok(processed.includes('description: User defined description'), 'Should preserve user-defined description')
-      assert.ok(processed.includes('customField: custom value'), 'Should preserve custom fields')
-      assert.ok(processed.includes('author: Jane Doe'), 'Should preserve author field')
-
-      // Verify H1 was removed (since title exists in frontmatter)
-      assert.ok(!processed.includes('# This H1 Should Not Override Title'), 'Should remove H1 since title exists')
-
-      // Verify content is preserved
-      assert.ok(processed.includes('Content here.'), 'Should preserve markdown content')
-    })
-  })
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      const path = realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'guide.md')
+      parseMarkdown(path, ({data}) => {
+        assert(data.content.includes('title: User Defined Title'))
+        assert(data.content.includes('description: User defined description'))
+        assert(data.content.includes('customField: custom value'))
+        assert(data.content.includes('author: Jane Doe'))
+        assert(!data.content.includes('# This H1 Should Not Override Title'))
+        assert(data.content.includes('Content here.'))
+      })
+    }))
 })

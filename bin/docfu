@@ -1,20 +1,23 @@
 #!/usr/bin/env node
 
 import {Command} from 'commander'
-import base from '../lib/base.js'
-import theme from '../lib/theme.js'
+import {DocFuConfig} from '../lib/docfu-config.js'
+import {theme} from '../lib/theme.js'
 
 // commands
 import init from '../lib/cli/init.js'
 import stage from '../lib/cli/stage.js'
 import build from '../lib/cli/build.js'
 
+// Initialize global docfu (commands can override with their specific source/sandbox)
+global.docfu = new DocFuConfig(process.cwd())
+
 const program = new Command()
 
 program
   .name('docfu')
   .description('Generate production-ready documentation websites from markdown')
-  .version(base.package.version, '-v, --version', 'output version number')
+  .version(docfu.packageData.version, '-v, --version', 'output version number')
   .usage('[options] <source>')
   .configureHelp({
     sortOptions: true,
@@ -46,17 +49,14 @@ program
   .description('Stage documents for build')
   .argument('<source>', 'path to markdown docs')
   .option('-s, --sandbox <path>', 'sandbox directory (default: .docfu)')
-  .option('--unsafe', 'skip confirmations and allow external path deletion')
   .action(async (source, options) => stage(source, options))
 
-// Build command - stage and build static site (default)
+// Build command - stage and build static site
 program
-  .command('build', {isDefault: true})
-  .description('Build documentation site (default)')
+  .command('build')
+  .description('Build documentation site')
   .argument('<source>', 'path to markdown docs')
   .option('-s, --sandbox <path>', 'sandbox directory (default: .docfu)')
-  .option('--unsafe', 'skip confirmations and allow external path deletion')
-  .option('--dry-run', 'verify configuration without building')
   .action(async (source, options) => build(source, options))
 
 // Preview command - stage, build, and serve locally
@@ -65,7 +65,6 @@ program
   .description('Preview documentation site locally')
   .argument('<source>', 'path to markdown docs')
   .option('-s, --sandbox <path>', 'sandbox directory (default: .docfu)')
-  .option('--unsafe', 'skip confirmations and allow external path deletion')
   .option('-p, --port <number>', 'preview server port (default: 4321)', '4321')
   .option('--watch', 'watch for changes and rebuild')
   .action(async (source, options) => previewCommand(source, options))
@@ -79,10 +78,6 @@ ${theme.primary('Examples:')}
   ${theme.tertiary('$')} docfu stage ./docs
   ${theme.tertiary('$')} docfu preview ./my-docs --port 3000
   ${theme.tertiary('$')} docfu build ./docs --sandbox /tmp/my-docs
-
-${theme.primary('Environment Variables:')}
-  ${theme.symbolic('DOCFU_SOURCE')}   ${theme.tertiary('Source markdown directory')}
-  ${theme.symbolic('DOCFU_SANDBOX')}  ${theme.tertiary('Sandbox directory (default: .docfu)')}
 `
 )
 

@@ -9,21 +9,24 @@ import {join, resolve} from 'path'
 import yaml from 'js-yaml'
 
 /**
- * Get root path from environment or default
- * @returns {string} Absolute root path
+ * Get sandbox path from environment
+ * Set by @lib/base.js during staging
+ * @returns {string} Absolute sandbox path
  */
-export function getRoot() {
-  const root = process.env.DOCFU_ROOT || '.docfu'
-  return resolve(root)
+export function getSandbox() {
+  if (!process.env.DOCFU_SANDBOX) {
+    throw new Error('DOCFU_SANDBOX environment variable not set')
+  }
+  return process.env.DOCFU_SANDBOX
 }
 
 /**
- * Load manifest from DOCFU_ROOT/manifest.json
+ * Load manifest from sandbox/manifest.json
  * @returns {Object} Manifest object or empty object if not found
  */
 export function loadManifest() {
-  const root = getRoot()
-  const manifestPath = join(root, 'manifest.json')
+  const sandbox = getSandbox()
+  const manifestPath = join(sandbox, 'manifest.json')
 
   if (!existsSync(manifestPath)) return {}
 
@@ -35,12 +38,12 @@ export function loadManifest() {
 }
 
 /**
- * Load config from DOCFU_ROOT/config.yml
+ * Load config from sandbox/config.yml
  * @returns {Object} Config object or empty object if not found
  */
 export function loadConfig() {
-  const root = getRoot()
-  const configPath = join(root, 'config.yml')
+  const sandbox = getSandbox()
+  const configPath = join(sandbox, 'config.yml')
 
   if (!existsSync(configPath)) return {}
 

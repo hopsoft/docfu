@@ -7,8 +7,13 @@ export default defineConfig({
     bail: 1,
     globals: false,
     minWorkers: 1,
-    maxWorkers: Math.ceil(availableParallelism() * 0.5),
+    maxWorkers: Math.ceil(availableParallelism() / 2),
     pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: false,
+      },
+    },
     sequence: {
       concurrent: true,
       shuffle: {files: true, tests: true},

@@ -1,12 +1,10 @@
 #!/usr/bin/env node
 
-import {system} from '../lib/system.js'
-import pkgmgr from '../lib/package-manager.js'
+import '../lib/logger.js'
+import {pm} from '../lib/package-manager.js'
 
-const exec = pkgmgr.getCommand('exec')
-system(exec, 'markdown-toc -i --maxdepth 2 README.md')
-system(
-  exec,
+await pm.run('markdown-toc -i --maxdepth 2 README.md')
+await pm.run(
   'prettier',
   '--log-level silent',
   '--write',

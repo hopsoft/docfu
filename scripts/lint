@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 
-import {system} from '../lib/system.js'
-import pkgmgr from '../lib/package-manager.js'
+import '../lib/logger.js'
+import {pm} from '../lib/package-manager.js'
 
-system(
-  pkgmgr.getCommand('exec'),
+await pm.run(
   'prettier',
   '--check',
   '*.js',

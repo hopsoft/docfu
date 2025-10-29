@@ -1,51 +1,46 @@
-import {describe, it} from 'vitest'
-import assert from 'assert'
-import {join, read} from '../../lib/file-system.js'
+import {assert, describe, it} from 'vitest'
+import {realpath} from '../../lib/file-system.js'
 import {createFixtures, spawn, quarantine} from '../utils.js'
+import {parseMarkdown} from '../parsers/markdown-parser.js'
+import {parseMDX} from '../parsers/mdx-parser.js'
 
 const docfuYml = 'site:\n  name: Test Docs\n  url: https://example.com'
 
 describe('Relative Links', () => {
-  it('should transform relative links to absolute site paths', ({task}) => {
-    quarantine(task, testdir => {
+  it('should transform relative links to absolute site paths', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': docfuYml,
         'index.md': '# Home\n\nSee [Getting Started](./getting-started.md)',
         'getting-started.md': '# Getting Started\n\nBack to [Home](./index.md)',
       })
 
-      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      const docsdir = realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs')
+      parseMarkdown(docsdir, 'index.md', ({data}) => {
+        assert(data.content.includes('[Getting Started](/getting-started/)'))
+        assert(!data.content.includes('./getting-started.md'))
+      })
+      parseMarkdown(docsdir, 'getting-started.md', ({data}) => assert(data.content.includes('[Home](/)')))
+    }))
 
-      const indexContent = read(join(testdir, '.docfu', 'workspace', 'src/content/docs/index.md'))
-      assert.ok(
-        indexContent.includes('[Getting Started](/getting-started/)'),
-        'Should transform relative link to absolute'
-      )
-      assert.ok(!indexContent.includes('./getting-started.md'), 'Should not have relative link')
-
-      const startContent = read(join(testdir, '.docfu', 'workspace', 'src/content/docs/getting-started.md'))
-      assert.ok(startContent.includes('[Home](/)'), 'Should transform index link to root')
-    })
-  })
-
-  it('should lowercase paths and preserve fragments', ({task}) => {
-    quarantine(task, testdir => {
+  it('should lowercase paths and preserve fragments', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': 'site:\n  name: Test',
         'glossary.md': '# Glossary\n\n[Term 503B](./terms/503B.md#definition)',
         'terms/503B.md': '# 503B\n\n## Definition',
       })
 
-      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      parseMarkdown(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'glossary.md', ({data}) => {
+        assert(data.content.includes('[Term 503B](/terms/503b/#definition)'))
+        assert(!data.content.includes('./terms/503B'))
+      })
+    }))
 
-      const content = read(join(testdir, '.docfu', 'workspace', 'src/content/docs/glossary.md'))
-      assert.ok(content.includes('[Term 503B](/terms/503b/#definition)'), 'Should lowercase path and preserve fragment')
-      assert.ok(!content.includes('./terms/503B'), 'Should not have relative link')
-    })
-  })
-
-  it('should handle parent directory references', ({task}) => {
-    quarantine(task, testdir => {
+  it('should handle parent directory references', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': 'site:\n  name: Test',
         'guides/index.md': '# Guides\n\nSee [API](../api/reference.md)',
@@ -53,19 +48,17 @@ describe('Relative Links', () => {
         'api/reference.md': '# Reference',
       })
 
-      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      const docsdir = realpath(testdir, '.docfu', 'workspace', 'src', 'content', 'docs')
+      parseMarkdown(docsdir, 'guides', 'index.md', ({data}) => {
+        assert(data.content.includes('[API](/api/reference/)'))
+        assert(!data.content.includes('../api/reference'))
+      })
+      parseMarkdown(docsdir, 'guides', 'quickstart.md', ({data}) => assert(data.content.includes('[Guides](/guides/)')))
+    }))
 
-      const guidesContent = read(join(testdir, '.docfu', 'workspace', 'src/content/docs/guides/index.md'))
-      assert.ok(guidesContent.includes('[API](/api/reference/)'), 'Should transform parent directory link')
-      assert.ok(!guidesContent.includes('../api/reference'), 'Should not have relative link')
-
-      const quickstartContent = read(join(testdir, '.docfu', 'workspace', 'src/content/docs/guides/quickstart.md'))
-      assert.ok(quickstartContent.includes('[Guides](/guides/)'), 'Should transform to /guides/ without index')
-    })
-  })
-
-  it('should preserve frontmatter formatting', ({task}) => {
-    quarantine(task, testdir => {
+  it('should preserve frontmatter formatting', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': 'site:\n  name: Test',
         'page.md': `---
@@ -83,24 +76,19 @@ Link to [other](./other.md)`,
         'other.md': '# Other',
       })
 
-      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      parseMarkdown(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'page.md', ({data}) => {
+        assert(data.content.includes('title: Test Page'))
+        assert(data.content.includes('description: |'))
+        assert(data.content.includes('  Multi-line'))
+        assert(data.content.includes('tags:'))
+        assert(data.content.includes('  - important'))
+        assert(data.content.includes('[other](/other/)'))
+      })
+    }))
 
-      const content = read(join(testdir, '.docfu', 'workspace', 'src/content/docs/page.md'))
-
-      // Check frontmatter preserved
-      assert.ok(content.includes('title: Test Page'), 'Should preserve title')
-      assert.ok(content.includes('description: |'), 'Should preserve pipe literal')
-      assert.ok(content.includes('  Multi-line'), 'Should preserve indented multi-line')
-      assert.ok(content.includes('tags:'), 'Should preserve tags array')
-      assert.ok(content.includes('  - important'), 'Should preserve list indentation')
-
-      // Check link transformed
-      assert.ok(content.includes('[other](/other/)'), 'Should transform link')
-    })
-  })
-
-  it('should work with MDX files', ({task}) => {
-    quarantine(task, testdir => {
+  it('should work with MDX files', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': 'site:\n  name: Test',
         'components/Button.jsx': 'export default function Button() { return <button>Click</button> }',
@@ -114,16 +102,15 @@ See [docs](./docs/guide.md)`,
         'docs/guide.md': '# Guide',
       })
 
-      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      parseMDX(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'page.mdx', ({data}) => {
+        assert(data.content.includes('[docs](/docs/guide/)'))
+        assert(data.content.includes("import Button from './components/Button.jsx'"))
+      })
+    }))
 
-      const content = read(join(testdir, '.docfu', 'workspace', 'src/content/docs/page.mdx'))
-      assert.ok(content.includes('[docs](/docs/guide/)'), 'Should transform relative links in MDX')
-      assert.ok(content.includes("import Button from './components/Button.jsx'"), 'Should preserve component imports')
-    })
-  })
-
-  it('should work with Markdoc files', ({task}) => {
-    quarantine(task, testdir => {
+  it('should work with Markdoc files', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': 'site:\n  name: Test',
         'page.md': `# Page
@@ -137,17 +124,16 @@ Link to [reference](./api/reference.md)`,
         'api/reference.md': '# Reference',
       })
 
-      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      parseMarkdown(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'page.mdoc', ({assertTag, data}) => {
+        assert(data.content.includes('[guide](/guide/)'))
+        assert(data.content.includes('[reference](/api/reference/)'))
+        assertTag('aside')
+      })
+    }))
 
-      const content = read(join(testdir, '.docfu', 'workspace', 'src/content/docs/page.mdoc'))
-      assert.ok(content.includes('[guide](/guide/)'), 'Should transform relative links in Markdoc')
-      assert.ok(content.includes('[reference](/api/reference/)'), 'Should transform nested paths')
-      assert.ok(content.includes('{% aside type="note" %}'), 'Should preserve Markdoc tags')
-    })
-  })
-
-  it('should not transform absolute or external links', ({task}) => {
-    quarantine(task, testdir => {
+  it('should not transform absolute or external links', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': 'site:\n  name: Test',
         'page.md': `# Page
@@ -159,18 +145,17 @@ Link to [reference](./api/reference.md)`,
         'other.md': '# Other',
       })
 
-      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      parseMarkdown(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'page.md', ({data}) => {
+        assert(data.content.includes('[Absolute](/docs/api/)'))
+        assert(data.content.includes('[External](https://example.com)'))
+        assert(data.content.includes('[Anchor](#section)'))
+        assert(data.content.includes('[Relative](/other/)'))
+      })
+    }))
 
-      const content = read(join(testdir, '.docfu', 'workspace', 'src/content/docs/page.md'))
-      assert.ok(content.includes('[Absolute](/docs/api/)'), 'Should preserve absolute link')
-      assert.ok(content.includes('[External](https://example.com)'), 'Should preserve external link')
-      assert.ok(content.includes('[Anchor](#section)'), 'Should preserve anchor link')
-      assert.ok(content.includes('[Relative](/other/)'), 'Should transform relative link only')
-    })
-  })
-
-  it('should strip .md, .mdx, and .mdoc extensions', ({task}) => {
-    quarantine(task, testdir => {
+  it('should strip .md, .mdx, and .mdoc extensions', async ({task}) =>
+    quarantine(task, async testdir => {
       createFixtures(testdir, {
         'docfu.yml': 'site:\n  name: Test',
         'index.md': `# Home
@@ -183,12 +168,11 @@ Link to [reference](./api/reference.md)`,
         'doc.md': '{% aside %}Note{% /aside %}',
       })
 
-      spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
-
-      const content = read(join(testdir, '.docfu', 'workspace', 'src/content/docs/index.md'))
-      assert.ok(content.includes('[Markdown](/page/)'), 'Should strip .md extension')
-      assert.ok(content.includes('[MDX](/component/)'), 'Should strip .mdx extension')
-      assert.ok(content.includes('[Markdoc](/doc/)'), 'Should strip .mdoc extension')
-    })
-  })
+      await spawn(`node ./bin/docfu stage --unsafe ${testdir}`)
+      parseMarkdown(testdir, '.docfu', 'workspace', 'src', 'content', 'docs', 'index.md', ({data}) => {
+        assert(data.content.includes('[Markdown](/page/)'))
+        assert(data.content.includes('[MDX](/component/)'))
+        assert(data.content.includes('[Markdoc](/doc/)'))
+      })
+    }))
 })
